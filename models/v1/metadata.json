@@ -92,15 +92,16 @@
             "lag_1"
         ],
         "best_parameters": {
-            "subsample": 0.9,
-            "reg_lambda": 0.6666666666666666,
-            "reg_alpha": 0.1,
-            "n_estimators": 1100,
+            "subsample": 0.7,
+            "reg_lambda": 1.0,
+            "reg_alpha": 0.05,
+            "n_estimators": 1000,
             "min_child_weight": 8,
-            "max_depth": 7,
-            "learning_rate": 0.045,
-            "gamma": 0.1,
-            "colsample_bytree": 0.8
+            "max_depth": 2,
+            "learning_rate": 0.05,
+            "huber_slope": 0.5,
+            "gamma": 0.0,
+            "colsample_bytree": 0.6
         }
     },
     "preprocessing": {
@@ -124,24 +125,37 @@
             "xgboost": 1.0
         },
         "inverse_rmse_weights": {
-            "lstm": 0.49828656928790577,
-            "xgboost": 0.5017134307120943
+            "lstm": 0.4849218751708898,
+            "xgboost": 0.5150781248291103
         },
         "scipy_optimized_weights": {
             "lstm": 6.610696135189609e-05,
             "xgboost": 0.9999338930386481,
-            "validation_rmse": 6.173902490582471
+            "validation_rmse": 5.837005809877469
         },
         "error_correlation": {
-            "validation": 0.9997414863479093,
-            "test": 0.9996889263325914
+            "validation": 0.9981424294056053,
+            "test": 0.9977526228356012
         }
     },
     "evaluation": {
-        "lstm_rmse": 5.945031028216164,
-        "xgboost_rmse": 5.904756175963934,
-        "ensemble_rmse": 5.924243792372611,
-        "ensemble_mae": 2.299363704252903,
-        "ensemble_r2": -0.13178240719865952
+        "lstm_rmse": 5.928247732966538,
+        "lstm_mae": 2.3071824397739715,
+        "lstm_mape": 76.78431482821333,
+        "xgboost_rmse": 5.558948939335911,
+        "xgboost_mae": 3.143668137231364,
+        "xgboost_mape": 178.04577847987784,
+        "ensemble_rmse": 5.656280137923013,
+        "ensemble_mae": 2.6558636192728136,
+        "ensemble_mape": 106.97263121026424,
+        "ensemble_r2": -0.031713030458476954
+    },
+    "computational_cost": {
+        "lstm_train_seconds": 1091.7156262397766,
+        "lstm_predict_seconds": 1.6921515464782715,
+        "lstm_param_count": 13217,
+        "xgboost_tuning_seconds": 92.7799563407898,
+        "xgboost_predict_seconds": 0.002387523651123047,
+        "xgboost_n_estimators_used": 131
     }
 }
