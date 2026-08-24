@@ -1,0 +1,147 @@
+{
+    "model_type": "LSTM_XGBoost_Ensemble",
+    "training_version": "1.0",
+    "lstm_config": {
+        "window_size": 70,
+        "units_layer1": 32,
+        "units_layer2": 32,
+        "dense_units": 16,
+        "dropout": 0.5,
+        "epochs": 100,
+        "batch_size": 60,
+        "learning_rate": 1e-07,
+        "momentum": 0.9
+    },
+    "xgboost_config": {
+        "feature_strategy": "Lag only",
+        "lag_window": 70,
+        "rolling_windows": [
+            7,
+            14
+        ],
+        "feature_names": [
+            "lag_70",
+            "lag_69",
+            "lag_68",
+            "lag_67",
+            "lag_66",
+            "lag_65",
+            "lag_64",
+            "lag_63",
+            "lag_62",
+            "lag_61",
+            "lag_60",
+            "lag_59",
+            "lag_58",
+            "lag_57",
+            "lag_56",
+            "lag_55",
+            "lag_54",
+            "lag_53",
+            "lag_52",
+            "lag_51",
+            "lag_50",
+            "lag_49",
+            "lag_48",
+            "lag_47",
+            "lag_46",
+            "lag_45",
+            "lag_44",
+            "lag_43",
+            "lag_42",
+            "lag_41",
+            "lag_40",
+            "lag_39",
+            "lag_38",
+            "lag_37",
+            "lag_36",
+            "lag_35",
+            "lag_34",
+            "lag_33",
+            "lag_32",
+            "lag_31",
+            "lag_30",
+            "lag_29",
+            "lag_28",
+            "lag_27",
+            "lag_26",
+            "lag_25",
+            "lag_24",
+            "lag_23",
+            "lag_22",
+            "lag_21",
+            "lag_20",
+            "lag_19",
+            "lag_18",
+            "lag_17",
+            "lag_16",
+            "lag_15",
+            "lag_14",
+            "lag_13",
+            "lag_12",
+            "lag_11",
+            "lag_10",
+            "lag_9",
+            "lag_8",
+            "lag_7",
+            "lag_6",
+            "lag_5",
+            "lag_4",
+            "lag_3",
+            "lag_2",
+            "lag_1"
+        ],
+        "best_parameters": {
+            "subsample": 0.9,
+            "reg_lambda": 0.6666666666666666,
+            "reg_alpha": 0.1,
+            "n_estimators": 1100,
+            "min_child_weight": 8,
+            "max_depth": 7,
+            "learning_rate": 0.045,
+            "gamma": 0.1,
+            "colsample_bytree": 0.8
+        }
+    },
+    "preprocessing": {
+        "box_cox_lambda": -1.4386915682381394,
+        "scaler_type": "MinMaxScaler",
+        "scaler_range": [
+            0,
+            1
+        ]
+    },
+    "data_split": {
+        "cutoff_index": 9058,
+        "total_length": 10988,
+        "lstm_train_samples": 8988,
+        "lstm_test_samples": 1930
+    },
+    "ensemble": {
+        "best_strategy": "Inverse RMSE weighting",
+        "grid_weights": {
+            "lstm": 0.0,
+            "xgboost": 1.0
+        },
+        "inverse_rmse_weights": {
+            "lstm": 0.49828656928790577,
+            "xgboost": 0.5017134307120943
+        },
+        "scipy_optimized_weights": {
+            "lstm": 6.610696135189609e-05,
+            "xgboost": 0.9999338930386481,
+            "validation_rmse": 6.173902490582471
+        },
+        "error_correlation": {
+            "validation": 0.9997414863479093,
+            "test": 0.9996889263325914
+        }
+    },
+    "evaluation": {
+        "lstm_rmse": 5.945031028216164,
+        "xgboost_rmse": 5.904756175963934,
+        "ensemble_rmse": 5.924243792372611,
+        "ensemble_mae": 2.299363704252903,
+        "ensemble_r2": -0.13178240719865952
+    }
+}
