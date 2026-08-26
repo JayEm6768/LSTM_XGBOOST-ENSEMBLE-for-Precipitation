@@ -2,6 +2,7 @@
 Panel-defense dashboard for the LSTM-XGBoost precipitation ensemble.
 
 Run locally with:
+    cd streamlit_dashboard
     pip install -r requirements.txt
     streamlit run app.py
 
