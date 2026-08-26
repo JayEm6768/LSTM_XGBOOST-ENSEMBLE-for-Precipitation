@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Precipitation Model Scorecard</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page-plane:     #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline-axis:  #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --card-shadow:    0 1px 2px rgba(11,11,11,0.04), 0 1px 12px rgba(11,11,11,0.03);
+
+    --lstm:     #2a78d6;
+    --xgb:      #eb6834;
+    --ensemble: #1baf7a;
+
+    --div-pos: #2a78d6;
+    --div-neg: #e34948;
+    --div-mid: #f0efec;
+
+    --good:     #0ca30c;
+    --critical: #d03b3b;
+
+    --tooltip-bg: #0b0b0b;
+    --tooltip-fg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page-plane:     #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline-axis:  #383835;
+      --border:         rgba(255,255,255,0.10);
+      --card-shadow:    0 1px 2px rgba(0,0,0,0.3), 0 1px 16px rgba(0,0,0,0.25);
+
+      --lstm:     #3987e5;
+      --xgb:      #d95926;
+      --ensemble: #199e70;
+
+      --div-pos: #3987e5;
+      --div-neg: #e66767;
+      --div-mid: #383835;
+
+      --good:     #0ca30c;
+      --critical: #e66767;
+
+      --tooltip-bg: #f4f4f2;
+      --tooltip-fg: #0b0b0b;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page-plane:     #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline-axis:  #383835;
+    --border:         rgba(255,255,255,0.10);
+    --card-shadow:    0 1px 2px rgba(0,0,0,0.3), 0 1px 16px rgba(0,0,0,0.25);
+
+    --lstm:     #3987e5;
+    --xgb:      #d95926;
+    --ensemble: #199e70;
+
+    --div-pos: #3987e5;
+    --div-neg: #e66767;
+    --div-mid: #383835;
+
+    --good:     #0ca30c;
+    --critical: #e66767;
+
+    --tooltip-bg: #f4f4f2;
+    --tooltip-fg: #0b0b0b;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body.viz-root {
+    background: var(--page-plane);
+    color: var(--text-primary);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header.page-head {
+    display: flex; flex-direction: column; gap: 10px;
+    padding-bottom: 28px; margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  h1 {
+    margin: 0; font-size: 30px; line-height: 1.15; font-weight: 600;
+    letter-spacing: -0.01em; text-wrap: balance;
+  }
+  .dek { margin: 0; max-width: 62ch; color: var(--text-secondary); font-size: 15px; line-height: 1.55; }
+
+  .model-key { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 6px; }
+  .model-key .item { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); }
+  .model-key .swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+  .model-key .swatch.baseline { background: none; border: 2px dashed var(--text-muted); width: 14px; height: 0; border-radius: 0; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 20px; }
+  .grid.full { grid-template-columns: 1fr; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px 22px 18px; box-shadow: var(--card-shadow);
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .card .card-head { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; }
+  .card h2 {
+    margin: 0; font-size: 15.5px; font-weight: 600; letter-spacing: -0.005em;
+  }
+  .card .insight { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+  .metric-legend {
+    list-style: none; margin: 10px 0 2px; padding: 10px 12px;
+    background: color-mix(in oklab, var(--text-muted) 8%, transparent);
+    border-radius: 8px; display: flex; flex-direction: column; gap: 5px;
+  }
+  .metric-legend li { font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+  .metric-legend b { color: var(--text-primary); font-weight: 600; }
+  .metric-legend .best { color: var(--good); }
+  .metric-legend .worst { color: var(--critical); }
+  .chart-holder { width: 100%; }
+  .chart-holder svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+  .legend .item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .legend .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .legend .swatch.line { width: 13px; height: 0; border-top: 2px dashed var(--text-muted); border-radius: 0; }
+
+  .axis-label, .cat-label, .val-label { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .axis-label { font-size: 10.5px; fill: var(--text-muted); }
+  .cat-label { font-size: 11px; fill: var(--text-secondary); }
+  .val-label { font-size: 10.5px; fill: var(--text-primary); font-weight: 600; }
+  .ref-label { font-size: 10px; fill: var(--text-muted); }
+  .grid-line { stroke: var(--gridline); stroke-width: 1; }
+  .base-line { stroke: var(--baseline-axis); stroke-width: 1; }
+  .ref-dash { stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
+
+  details.tbl { margin-top: 12px; }
+  details.tbl summary {
+    cursor: pointer; font-size: 12px; color: var(--text-muted);
+    font-family: "IBM Plex Mono", ui-monospace, monospace; user-select: none;
+  }
+  details.tbl summary:hover { color: var(--text-secondary); }
+  table.data { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12.5px; }
+  table.data th, table.data td {
+    text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--gridline);
+    font-variant-numeric: tabular-nums; font-family: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  table.data th:first-child, table.data td:first-child { text-align: left; font-family: "IBM Plex Sans", sans-serif; }
+  table.data th { color: var(--text-muted); font-weight: 500; font-size: 11px; letter-spacing: 0.02em; }
+  table.data td { color: var(--text-primary); }
+
+  .bar-rect { cursor: pointer; }
+  .bar-rect:hover { filter: brightness(1.08); }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 50;
+    background: var(--tooltip-bg); color: var(--tooltip-fg);
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+    padding: 7px 10px; border-radius: 7px; line-height: 1.45;
+    opacity: 0; transform: translate(-50%, calc(-100% - 10px)); transition: opacity 0.08s ease;
+    white-space: nowrap;
+  }
+  #tooltip.show { opacity: 1; }
+  #tooltip b { font-weight: 600; }
+
+  footer.page-foot {
+    margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-muted); line-height: 1.6;
+  }
+
+  @media (max-width: 620px) {
+    .wrap { padding: 28px 16px 60px; }
+    h1 { font-size: 24px; }
+    .grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+</head>
+<body class="viz-root">
+<div class="wrap">
+
+  <header class="page-head">
+    <span class="eyebrow">Ensemble LSTM&ndash;XGBoost &middot; Precipitation Forecasting &middot; Locked Evaluation Run</span>
+    <h1>Model Scorecard</h1>
+    <p class="dek">Test set: 1,860 days (Apr&nbsp;2014&ndash;Dec&nbsp;2020), windowed to match the baseline study exactly. Reproduced baseline LSTM: RMSE&nbsp;6.2009&nbsp;in.</p>
+    <div class="model-key">
+      <span class="item"><span class="swatch" style="background:var(--lstm)"></span>LSTM (standalone)</span>
+      <span class="item"><span class="swatch" style="background:var(--xgb)"></span>XGBoost (standalone)</span>
+      <span class="item"><span class="swatch" style="background:var(--ensemble)"></span>Ensemble &mdash; inverse&#8209;RMSE weighting</span>
+      <span class="item"><span class="swatch baseline"></span>Reproduced baseline (reference)</span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <section class="card" id="card-rmse">
+      <div class="card-head">
+        <h2>RMSE &amp; MAE &mdash; average error, in inches</h2>
+        <p class="insight">Ensemble RMSE clears the baseline by 9.2%, just under the 10% target &mdash; but its MAE sits above the baseline, not below it.</p>
+      </div>
+      <ul class="metric-legend">
+        <li><b>RMSE</b> &mdash; average error in inches, with large misses weighted more heavily (each error is squared before averaging). <span class="best">Best: 0 in.</span> <span class="worst">No ceiling &mdash; always worse the higher it goes.</span></li>
+        <li><b>MAE</b> &mdash; average error in inches, every day weighted equally regardless of size. <span class="best">Best: 0 in.</span> <span class="worst">No ceiling &mdash; reflects a &ldquo;typical&rdquo; day's error better than RMSE does.</span></li>
+      </ul>
+      <div class="chart-holder" id="chart-rmse-mae"></div>
+      <div class="legend" id="legend-rmse-mae"></div>
+    </section>
+
+    <section class="card" id="card-mape">
+      <div class="card-head">
+        <h2>MAPE &mdash; error as % of actual rainfall</h2>
+        <p class="insight">All three models read far above the baseline; XGBoost's percentage error is worst despite having the lowest RMSE.</p>
+      </div>
+      <ul class="metric-legend">
+        <li><b>MAPE</b> &mdash; average error expressed as a percent of that day's actual rainfall. <span class="best">Best: 0%.</span> <span class="worst">No fixed ceiling &mdash; a small miss on a nearly-dry day can spike this number, which is why it reads so high here.</span></li>
+      </ul>
+      <div class="chart-holder" id="chart-mape"></div>
+      <div class="legend" id="legend-mape"></div>
+    </section>
+
+    <section class="card" id="card-fit">
+      <div class="card-head">
+        <h2>Goodness of fit &mdash; R&sup2;, Pearson r, explained variance</h2>
+        <p class="insight">All three sit at or below zero: none of these models explain more variance than simply predicting the historical mean every day.</p>
+      </div>
+      <ul class="metric-legend">
+        <li><b>R&sup2;</b> &mdash; share of rainfall's variation the model accounts for. <span class="best">Best: 1.0 (perfect).</span> <span class="worst">0 = no better than always guessing the average; below 0 (seen here) = worse than that.</span></li>
+        <li><b>Pearson r</b> &mdash; how closely predictions track the true ups and downs, &minus;1 to 1. <span class="best">Best: 1.0.</span> <span class="worst">0 = no relationship; negative = moves opposite to reality.</span></li>
+        <li><b>Explained Variance</b> &mdash; like R&sup2;, but ignores any constant over/under-shoot in the predictions. <span class="best">Best: 1.0.</span> <span class="worst">&le;0 = no real explanatory power.</span></li>
+      </ul>
+      <div class="chart-holder" id="chart-fit"></div>
+      <div class="legend" id="legend-fit"></div>
+    </section>
+
+    <section class="card" id="card-bias">
+      <div class="card-head">
+        <h2>Prediction bias &mdash; mean error, pred&nbsp;&minus;&nbsp;true</h2>
+        <p class="insight">Every model under-predicts on average; LSTM's bias is roughly 20&times; larger than XGBoost's.</p>
+      </div>
+      <ul class="metric-legend">
+        <li><b>Bias</b> &mdash; average of (prediction &minus; actual), in inches. <span class="best">Best: 0 in (no systematic drift).</span> <span class="worst">Negative = under-predicts rain on average; positive = over-predicts &mdash; neither direction is &ldquo;less wrong&rdquo; than the other.</span></li>
+      </ul>
+      <div class="chart-holder" id="chart-bias"></div>
+      <div class="legend" id="legend-bias"></div>
+    </section>
+
+    <section class="card" id="card-improve">
+      <div class="card-head">
+        <h2>Improvement vs. baseline, by metric</h2>
+        <p class="insight">Only RMSE improves across the board. MAE and MAPE get worse for XGBoost and the ensemble &mdash; RMSE-based selection optimizes the mean, not the typical case.</p>
+      </div>
+      <ul class="metric-legend">
+        <li><b>Improvement %</b> &mdash; how much lower a metric is than the reproduced baseline LSTM, as a percent. <span class="best">Best: 100% (metric driven to zero).</span> <span class="worst">0% = tied with baseline; negative (red) = worse than baseline, not just &ldquo;less improved.&rdquo;</span></li>
+      </ul>
+      <div class="chart-holder" id="chart-improve"></div>
+      <div class="legend" id="legend-improve"></div>
+    </section>
+
+    <section class="card" id="card-intensity">
+      <div class="card-head">
+        <h2>Error by rainfall intensity</h2>
+        <p class="insight">LSTM wins decisively on dry days; XGBoost is worst on dry days and best on heavy rain &mdash; the ensemble lands between the two everywhere.</p>
+      </div>
+      <ul class="metric-legend">
+        <li><b>MAE by intensity</b> &mdash; the same MAE as above (average error in inches), computed separately for dry / moderate / heavy-rain days. <span class="best">Best: 0 in in every bucket.</span> <span class="worst">Shows whether a model's overall accuracy comes from doing well everywhere, or just from the easy dry days.</span></li>
+      </ul>
+      <div class="chart-holder" id="chart-intensity"></div>
+      <div class="legend" id="legend-intensity"></div>
+    </section>
+
+    <section class="card" id="card-residual">
+      <div class="card-head">
+        <h2>Residual spread &mdash; typical vs. worst-case miss</h2>
+        <p class="insight">All three models carry a catastrophic single-day miss (&minus;78 to &minus;80&nbsp;in) that dominates RMSE far more than it dominates MAE.</p>
+      </div>
+      <ul class="metric-legend">
+        <li><b>Residual</b> &mdash; (prediction &minus; actual) for every test day, in inches. The solid box is the typical spread (mean &plusmn; 1 std&nbsp;dev); the thin whisker is the full worst-to-best range. <span class="best">Best: a narrow box centered on 0 with a short whisker.</span> <span class="worst">A whisker much longer than the box flags rare catastrophic misses hiding among many small ones.</span></li>
+      </ul>
+      <div class="chart-holder" id="chart-residual"></div>
+    </section>
+
+  </div>
+
+  <details class="tbl" style="margin-top:28px;">
+    <summary>View all figures as a table</summary>
+    <ul class="metric-legend" style="margin-top:12px;">
+      <li><b>RMSE / MAE</b> &mdash; average error in inches. <span class="best">Best: 0.</span> <span class="worst">Higher is always worse; RMSE weights large misses more.</span></li>
+      <li><b>MAPE</b> &mdash; average error as % of actual rainfall. <span class="best">Best: 0%.</span> <span class="worst">No ceiling.</span></li>
+      <li><b>R&sup2; / Pearson r / Expl. var.</b> &mdash; how well predictions track reality. <span class="best">Best: 1.0.</span> <span class="worst">0 or below = no better than (or worse than) guessing the average.</span></li>
+      <li><b>Bias</b> &mdash; mean (prediction &minus; actual), in inches. <span class="best">Best: 0.</span> <span class="worst">Negative = under-predicts; positive = over-predicts.</span></li>
+    </ul>
+    <table class="data">
+      <thead>
+        <tr><th>Model</th><th>RMSE (in)</th><th>MAE (in)</th><th>MAPE (%)</th><th>R&sup2;</th><th>Pearson r</th><th>Expl. var.</th><th>Bias (in)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Baseline (reproduced)</td><td>6.2009</td><td>2.3244</td><td>81.10</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+        <tr><td>LSTM</td><td>5.9109</td><td>2.2918</td><td>80.34</td><td>&minus;0.139</td><td>&minus;0.0001</td><td>&minus;0.0000</td><td>&minus;2.0618</td></tr>
+        <tr><td>XGBoost</td><td>5.5320</td><td>3.1341</td><td>176.85</td><td>0.003</td><td>0.0565</td><td>0.0031</td><td>&minus;0.0931</td></tr>
+        <tr><td>Ensemble</td><td>5.6303</td><td>2.6387</td><td>105.41</td><td>&minus;0.033</td><td>0.0565</td><td>0.0027</td><td>&minus;1.0467</td></tr>
+      </tbody>
+    </table>
+    <table class="data" style="margin-top:18px;">
+      <thead>
+        <tr><th>Rainfall intensity</th><th>N</th><th>LSTM MAE</th><th>XGBoost MAE</th><th>Ensemble MAE</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>No Rain (0 in)</td><td>1,076</td><td>0.199</td><td>2.136</td><td>1.198</td></tr>
+        <tr><td>Moderate (0.2&ndash;0.5 in)</td><td>184</td><td>0.177</td><td>1.823</td><td>0.854</td></tr>
+        <tr><td>Heavy (&gt;0.5 in)</td><td>600</td><td>6.694</td><td>5.326</td><td>5.770</td></tr>
+      </tbody>
+    </table>
+  </details>
+
+  <footer class="page-foot">
+    Source: <code>models/v2_static/metadata.json</code>, locked run of <code>LSTM_XGBoost_Ensemble_Precipitation_STATIC.ipynb</code>.
+    MAPE computed on days with &ge;0.1&nbsp;in of observed rain (n=784 of 1,860). &ldquo;Light (0&ndash;0.2&nbsp;in)&rdquo; rainfall-intensity bucket has zero test days in this period and is omitted.
+  </footer>
+
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var svgNS = "http://www.w3.org/2000/svg";
+  var tooltip = document.getElementById("tooltip");
+
+  function css(name) {
+    return getComputedStyle(document.body).getPropertyValue(name).trim();
+  }
+
+  function el(tag, attrs, parent) {
+    var e = document.createElementNS(svgNS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+
+  function showTip(evt, html) {
+    tooltip.innerHTML = html;
+    tooltip.style.left = evt.clientX + "px";
+    tooltip.style.top = evt.clientY + "px";
+    tooltip.classList.add("show");
+  }
+  function moveTip(evt) {
+    tooltip.style.left = evt.clientX + "px";
+    tooltip.style.top = evt.clientY + "px";
+  }
+  function hideTip() { tooltip.classList.remove("show"); }
+
+  function wireTip(node, html) {
+    node.addEventListener("mouseenter", function (e) { showTip(e, html); });
+    node.addEventListener("mousemove", moveTip);
+    node.addEventListener("mouseleave", hideTip);
+  }
+
+  function fmt(v, d) {
+    d = d === undefined ? 2 : d;
+    return v.toFixed(d);
+  }
+
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    var mag = Math.pow(10, Math.floor(Math.log10(v)));
+    var n = v / mag;
+    var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+    return step * mag;
+  }
+
+  // ---------------------------------------------------------------
+  // Grouped vertical bar chart: categories on x, N series per group.
+  // Optional dashed reference line (baseline).
+  // ---------------------------------------------------------------
+  function groupedBar(containerId, opts) {
+    var container = document.getElementById(containerId);
+    var W = 760, H = opts.height || 300;
+    var padL = 46, padR = 18, padT = 18, padB = 34;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var maxVal = opts.maxVal || Math.max.apply(null,
+      opts.categories.map(function (c) { return Math.max.apply(null, c.values); }));
+    if (opts.referenceValue) maxVal = Math.max(maxVal, opts.referenceValue);
+    maxVal = niceMax(maxVal * 1.12);
+
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": opts.ariaLabel || "" }, container);
+
+    var g0 = el("g", {}, svg);
+    var ticks = 4;
+    for (var t = 0; t <= ticks; t++) {
+      var v = (maxVal / ticks) * t;
+      var y = padT + plotH - (v / maxVal) * plotH;
+      el("line", { class: "grid-line", x1: padL, x2: W - padR, y1: y, y2: y }, g0);
+      var lbl = el("text", { class: "axis-label", x: padL - 8, y: y + 3, "text-anchor": "end" }, g0);
+      lbl.textContent = (opts.valuePrefix || "") + fmt(v, opts.decimals !== undefined ? opts.decimals : 1);
+    }
+    el("line", { class: "base-line", x1: padL, x2: W - padR, y1: padT + plotH, y2: padT + plotH }, g0);
+
+    var nCat = opts.categories.length;
+    var groupW = plotW / nCat;
+    var nSeries = opts.categories[0].values.length;
+    var barGap = 3;
+    var groupPad = groupW * 0.16;
+    var barW = Math.min(24, (groupW - groupPad * 2 - barGap * (nSeries - 1)) / nSeries);
+    var usedW = barW * nSeries + barGap * (nSeries - 1);
+    var groupStart0 = (groupW - usedW) / 2;
+
+    opts.categories.forEach(function (cat, ci) {
+      var gx = padL + ci * groupW;
+      var lbl = el("text", { class: "cat-label", x: gx + groupW / 2, y: H - padB + 18, "text-anchor": "middle" }, svg);
+      lbl.textContent = cat.label;
+
+      cat.values.forEach(function (v, si) {
+        var bx = gx + groupStart0 + si * (barW + barGap);
+        var bh = (v / maxVal) * plotH;
+        var by = padT + plotH - bh;
+        var color = opts.seriesColors[si];
+        var rect = el("path", {
+          class: "bar-rect",
+          d: roundedTop(bx, by, barW, bh, 4),
+          fill: color
+        }, svg);
+        wireTip(rect, "<b>" + opts.seriesNames[si] + "</b> &middot; " + cat.label + "<br>" +
+          (opts.valuePrefix || "") + fmt(v, opts.decimals !== undefined ? opts.decimals : 2) + (opts.unit || ""));
+        if (nSeries <= 4) {
+          var vt = el("text", { class: "val-label", x: bx + barW / 2, y: by - 5, "text-anchor": "middle" }, svg);
+          vt.setAttribute("font-size", "9.5");
+          vt.textContent = fmt(v, opts.decimals !== undefined ? opts.decimals : (v < 10 ? 2 : 0));
+        }
+      });
+    });
+
+    if (opts.referenceValue) {
+      var ry = padT + plotH - (opts.referenceValue / maxVal) * plotH;
+      el("line", { class: "ref-dash", x1: padL, x2: W - padR, y1: ry, y2: ry }, svg);
+      var rt = el("text", { class: "ref-label", x: W - padR, y: ry - 5, "text-anchor": "end" }, svg);
+      rt.textContent = opts.referenceLabel || "";
+    }
+
+    return svg;
+  }
+
+  function roundedTop(x, y, w, h, r) {
+    r = Math.min(r, w / 2, Math.max(h, 0.01));
+    if (h <= 0) return "M " + x + " " + (y + h) + " h " + w + " v 0.01 h " + (-w) + " Z";
+    return [
+      "M", x, y + h,
+      "L", x, y + r,
+      "Q", x, y, x + r, y,
+      "L", x + w - r, y,
+      "Q", x + w, y, x + w, y + r,
+      "L", x + w, y + h,
+      "Z"
+    ].join(" ");
+  }
+
+  function legend(containerId, items) {
+    var c = document.getElementById(containerId);
+    items.forEach(function (it) {
+      var d = document.createElement("span");
+      d.className = "item";
+      var sw = document.createElement("span");
+      sw.className = "swatch" + (it.line ? " line" : "");
+      if (!it.line) sw.style.background = it.color;
+      d.appendChild(sw);
+      d.appendChild(document.createTextNode(it.label));
+      c.appendChild(d);
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Horizontal diverging bar chart, centered at 0.
+  // ---------------------------------------------------------------
+  function divergingBar(containerId, opts) {
+    var container = document.getElementById(containerId);
+    var rowH = 30, gap = 10;
+    var W = 760, H = opts.rows.length * (rowH + gap) + 34;
+    var padL = opts.padL || 130, padR = 60, padT = 10;
+    var plotW = W - padL - padR;
+    var dec = opts.decimals === undefined ? 2 : opts.decimals;
+
+    var maxAbs = Math.max.apply(null, opts.rows.map(function (r) { return Math.abs(r.value); }));
+    if (opts.targetValue) maxAbs = Math.max(maxAbs, Math.abs(opts.targetValue));
+    maxAbs = niceMax(maxAbs * 1.2);
+
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": opts.ariaLabel || "" }, container);
+
+    var midX = padL + plotW / 2;
+    el("line", { class: "base-line", x1: midX, x2: midX, y1: padT, y2: H - 8 }, svg);
+
+    if (opts.targetValue !== undefined) {
+      var tx = midX + (opts.targetValue / maxAbs) * (plotW / 2);
+      el("line", { class: "ref-dash", x1: tx, x2: tx, y1: padT, y2: H - 8 }, svg);
+      var tt = el("text", { class: "ref-label", x: tx, y: padT - 2, "text-anchor": "middle" }, svg);
+      tt.textContent = opts.targetLabel || "";
+    }
+
+    opts.rows.forEach(function (row, i) {
+      var y = padT + i * (rowH + gap);
+      var lbl = el("text", { class: "cat-label", x: padL - 10, y: y + rowH / 2 + 4, "text-anchor": "end" }, svg);
+      lbl.textContent = row.label;
+
+      var barLen = (Math.abs(row.value) / maxAbs) * (plotW / 2);
+      var x = row.value >= 0 ? midX : midX - barLen;
+      var color = opts.colorFor ? opts.colorFor(row) : (row.value >= 0 ? "var(--div-pos)" : "var(--div-neg)");
+      var rect = el("rect", {
+        class: "bar-rect", x: x, y: y + 3, width: Math.max(barLen, 1.5), height: rowH - 6,
+        rx: 4, fill: color
+      }, svg);
+      wireTip(rect, "<b>" + row.label + "</b><br>" + (row.value >= 0 ? "+" : "") + fmt(row.value, dec) + (opts.unit || ""));
+
+      var vt = el("text", {
+        class: "val-label",
+        x: row.value >= 0 ? x + barLen + 8 : x - 8,
+        y: y + rowH / 2 + 4,
+        "text-anchor": row.value >= 0 ? "start" : "end"
+      }, svg);
+      vt.textContent = (row.value >= 0 ? "+" : "") + fmt(row.value, dec) + (opts.unit || "");
+    });
+
+    return svg;
+  }
+
+  // ---------------------------------------------------------------
+  // Residual range chart: min/max whisker + mean+/-std box, per model.
+  // ---------------------------------------------------------------
+  function rangeChart(containerId, items) {
+    var container = document.getElementById(containerId);
+    var rowH = 46, gap = 14;
+    var W = 760, H = items.length * (rowH + gap) + 30;
+    var padL = 96, padR = 40, padT = 10;
+    var plotW = W - padL - padR;
+
+    var lo = Math.min.apply(null, items.map(function (i) { return i.min; }));
+    var hi = Math.max.apply(null, items.map(function (i) { return i.max; }));
+    var span = hi - lo;
+    lo -= span * 0.06; hi += span * 0.06;
+
+    function xOf(v) { return padL + ((v - lo) / (hi - lo)) * plotW; }
+
+    var svg = el("svg", { viewBox: "0 0 " + W + " " + H, role: "img",
+      "aria-label": "Residual spread per model" }, container);
+
+    var zeroX = xOf(0);
+    el("line", { class: "base-line", x1: zeroX, x2: zeroX, y1: 4, y2: H - 22 }, svg);
+    var zt = el("text", { class: "ref-label", x: zeroX, y: H - 8, "text-anchor": "middle" }, svg);
+    zt.textContent = "0 in (no error)";
+
+    [lo + span * 0.06, hi - span * 0.06].forEach(function () {});
+    var ticks = [Math.ceil(lo/20)*20, 0, Math.floor(hi/20)*20];
+
+    items.forEach(function (it, i) {
+      var y = padT + i * (rowH + gap);
+      var cy = y + rowH / 2;
+
+      var lbl = el("text", { class: "cat-label", x: padL - 10, y: cy + 4, "text-anchor": "end" }, svg);
+      lbl.textContent = it.label;
+
+      var whisker = el("line", {
+        x1: xOf(it.min), x2: xOf(it.max), y1: cy, y2: cy,
+        stroke: it.color, "stroke-width": 2, opacity: 0.55
+      }, svg);
+      wireTip(whisker, "<b>" + it.label + "</b><br>worst-case range: " + fmt(it.min, 1) + " to +" + fmt(it.max, 1) + " in");
+
+      [it.min, it.max].forEach(function (v) {
+        el("line", { x1: xOf(v), x2: xOf(v), y1: cy - 6, y2: cy + 6, stroke: it.color, "stroke-width": 2, opacity: 0.55 }, svg);
+      });
+
+      var bx0 = xOf(Math.max(it.mean - it.std, lo));
+      var bx1 = xOf(it.mean + it.std);
+      var box = el("rect", {
+        class: "bar-rect", x: bx0, y: cy - 10, width: Math.max(bx1 - bx0, 2), height: 20,
+        rx: 4, fill: it.color
+      }, svg);
+      wireTip(box, "<b>" + it.label + "</b><br>mean " + fmt(it.mean, 2) + " in &plusmn; std " + fmt(it.std, 2) +
+        "<br>skew " + fmt(it.skew, 2) + " &middot; kurtosis " + fmt(it.kurtosis, 1));
+
+      var meanX = xOf(it.mean);
+      el("line", { x1: meanX, x2: meanX, y1: cy - 13, y2: cy + 13, stroke: css("--surface-1"), "stroke-width": 2 }, svg);
+
+      var vt = el("text", { class: "val-label", x: bx0 - 8, y: cy + 4, "text-anchor": "end" }, svg);
+      vt.setAttribute("font-size", "10");
+      vt.textContent = fmt(it.min, 0);
+      var vt2 = el("text", { class: "val-label", x: xOf(it.max) + 8, y: cy + 4, "text-anchor": "start" }, svg);
+      vt2.setAttribute("font-size", "10");
+      vt2.textContent = "+" + fmt(it.max, 1);
+    });
+
+    return svg;
+  }
+
+  // =================================================================
+  // Data
+  // =================================================================
+  var LSTM = "var(--lstm)", XGB = "var(--xgb)", ENS = "var(--ensemble)";
+  var BASELINE = { rmse: 6.2009, mae: 2.3244, mape: 81.10 };
+
+  var models = {
+    lstm:     { rmse: 5.9109, mae: 2.2918, mape: 80.34, r2: -0.1385, pearson: -0.0001, ev: -0.0000, bias: -2.0618 },
+    xgb:      { rmse: 5.5320, mae: 3.1341, mape: 176.85, r2: 0.0028, pearson: 0.0565, ev: 0.0031, bias: -0.0931 },
+    ensemble: { rmse: 5.6303, mae: 2.6387, mape: 105.41, r2: -0.0330, pearson: 0.0565, ev: 0.0027, bias: -1.0467 }
+  };
+
+  // --- RMSE & MAE ---
+  groupedBar("chart-rmse-mae", {
+    ariaLabel: "RMSE and MAE by model, in inches",
+    categories: [
+      { label: "RMSE", values: [models.lstm.rmse, models.xgb.rmse, models.ensemble.rmse] },
+      { label: "MAE", values: [models.lstm.mae, models.xgb.mae, models.ensemble.mae] }
+    ],
+    seriesColors: [LSTM, XGB, ENS],
+    seriesNames: ["LSTM", "XGBoost", "Ensemble"],
+    unit: " in", decimals: 2,
+    referenceValue: BASELINE.rmse,
+    referenceLabel: "baseline RMSE 6.20 in"
+  });
+  legend("legend-rmse-mae", [
+    { color: LSTM, label: "LSTM" }, { color: XGB, label: "XGBoost" }, { color: ENS, label: "Ensemble" },
+    { line: true, label: "baseline RMSE" }
+  ]);
+
+  // --- MAPE ---
+  groupedBar("chart-mape", {
+    ariaLabel: "MAPE by model",
+    categories: [
+      { label: "MAPE", values: [models.lstm.mape, models.xgb.mape, models.ensemble.mape] }
+    ],
+    seriesColors: [LSTM, XGB, ENS],
+    seriesNames: ["LSTM", "XGBoost", "Ensemble"],
+    unit: "%", decimals: 1, valuePrefix: "",
+    referenceValue: BASELINE.mape,
+    referenceLabel: "baseline MAPE 81.1%",
+    height: 220
+  });
+  legend("legend-mape", [
+    { color: LSTM, label: "LSTM" }, { color: XGB, label: "XGBoost" }, { color: ENS, label: "Ensemble" },
+    { line: true, label: "baseline MAPE" }
+  ]);
+
+  // --- Goodness of fit (diverging: R2/pearson/explained-var can go negative) ---
+  divergingBar("chart-fit", {
+    ariaLabel: "R2, Pearson r, and explained variance by model",
+    unit: "", decimals: 3, padL: 148,
+    rows: [
+      { label: "LSTM · R²", value: models.lstm.r2, model: "lstm" },
+      { label: "XGBoost · R²", value: models.xgb.r2, model: "xgb" },
+      { label: "Ensemble · R²", value: models.ensemble.r2, model: "ensemble" },
+      { label: "LSTM · Pearson r", value: models.lstm.pearson, model: "lstm" },
+      { label: "XGBoost · Pearson r", value: models.xgb.pearson, model: "xgb" },
+      { label: "Ensemble · Pearson r", value: models.ensemble.pearson, model: "ensemble" },
+      { label: "LSTM · Expl.Var", value: models.lstm.ev, model: "lstm" },
+      { label: "XGBoost · Expl.Var", value: models.xgb.ev, model: "xgb" },
+      { label: "Ensemble · Expl.Var", value: models.ensemble.ev, model: "ensemble" }
+    ],
+    colorFor: function (row) { return row.model === "lstm" ? LSTM : row.model === "xgb" ? XGB : ENS; }
+  });
+  legend("legend-fit", [
+    { color: LSTM, label: "LSTM" }, { color: XGB, label: "XGBoost" }, { color: ENS, label: "Ensemble" }
+  ]);
+
+  // --- Prediction bias (diverging) ---
+  divergingBar("chart-bias", {
+    ariaLabel: "Mean prediction error by model",
+    unit: " in",
+    rows: [
+      { label: "LSTM", value: models.lstm.bias },
+      { label: "XGBoost", value: models.xgb.bias },
+      { label: "Ensemble", value: models.ensemble.bias }
+    ],
+    colorFor: function (row) {
+      return row.label === "LSTM" ? LSTM : row.label === "XGBoost" ? XGB : ENS;
+    }
+  });
+  legend("legend-bias", [
+    { color: LSTM, label: "LSTM" }, { color: XGB, label: "XGBoost" }, { color: ENS, label: "Ensemble" }
+  ]);
+
+  // --- Improvement vs baseline (diverging, status colors, target line) ---
+  function pct(base, val) { return (base - val) / base * 100; }
+  divergingBar("chart-improve", {
+    ariaLabel: "Percent improvement vs baseline by metric and model",
+    unit: "%",
+    targetValue: 10, targetLabel: "10% target",
+    rows: [
+      { label: "LSTM · RMSE", value: pct(BASELINE.rmse, models.lstm.rmse) },
+      { label: "XGBoost · RMSE", value: pct(BASELINE.rmse, models.xgb.rmse) },
+      { label: "Ensemble · RMSE", value: pct(BASELINE.rmse, models.ensemble.rmse) },
+      { label: "LSTM · MAE", value: pct(BASELINE.mae, models.lstm.mae) },
+      { label: "XGBoost · MAE", value: pct(BASELINE.mae, models.xgb.mae) },
+      { label: "Ensemble · MAE", value: pct(BASELINE.mae, models.ensemble.mae) },
+      { label: "LSTM · MAPE", value: pct(BASELINE.mape, models.lstm.mape) },
+      { label: "XGBoost · MAPE", value: pct(BASELINE.mape, models.xgb.mape) },
+      { label: "Ensemble · MAPE", value: pct(BASELINE.mape, models.ensemble.mape) }
+    ],
+    colorFor: function (row) { return row.value >= 0 ? "var(--good)" : "var(--critical)"; }
+  });
+  legend("legend-improve", [
+    { color: "var(--good)", label: "improved vs. baseline" },
+    { color: "var(--critical)", label: "worse than baseline" },
+    { line: true, label: "10% target" }
+  ]);
+
+  // --- Rainfall intensity ---
+  var intensity = {
+    categories: ["No Rain (0 in)", "Moderate (0.2–0.5 in)", "Heavy (>0.5 in)"],
+    lstm:     [0.1988, 0.1769, 6.6938],
+    xgb:      [2.1363, 1.8226, 5.3256],
+    ensemble: [1.1978, 0.8540, 5.7700]
+  };
+  groupedBar("chart-intensity", {
+    ariaLabel: "MAE by rainfall intensity bucket and model",
+    categories: intensity.categories.map(function (label, i) {
+      return { label: label, values: [intensity.lstm[i], intensity.xgb[i], intensity.ensemble[i]] };
+    }),
+    seriesColors: [LSTM, XGB, ENS],
+    seriesNames: ["LSTM", "XGBoost", "Ensemble"],
+    unit: " in MAE", decimals: 2,
+    height: 320
+  });
+  legend("legend-intensity", [
+    { color: LSTM, label: "LSTM" }, { color: XGB, label: "XGBoost" }, { color: ENS, label: "Ensemble" }
+  ]);
+
+  // --- Residual spread ---
+  rangeChart("chart-residual", [
+    { label: "LSTM", color: LSTM, min: -80.11, max: 0.23, mean: -2.0618, std: 5.5397, skew: -4.598, kurtosis: 34.27 },
+    { label: "XGBoost", color: XGB, min: -77.71, max: 3.94, mean: -0.0931, std: 5.5312, skew: -4.601, kurtosis: 34.22 },
+    { label: "Ensemble", color: ENS, min: -78.87, max: 2.12, mean: -1.0467, std: 5.5322, skew: -4.608, kurtosis: 34.32 }
+  ]);
+
+})();
+</script>
+</body>
+</html>
