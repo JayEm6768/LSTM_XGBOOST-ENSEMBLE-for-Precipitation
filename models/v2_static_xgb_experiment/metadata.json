@@ -1,0 +1,220 @@
+{
+    "model_type": "LSTM_XGBoost_Ensemble_static",
+    "lstm_config": {
+        "window_size": 70,
+        "units_layer1": 32,
+        "units_layer2": 32,
+        "dense_units": 16,
+        "dropout": 0.5,
+        "epochs": 100,
+        "batch_size": 60,
+        "learning_rate": 1e-07,
+        "momentum": 0.9
+    },
+    "xgboost_config": {
+        "n_estimators": 1000,
+        "max_depth": 2,
+        "learning_rate": 0.05,
+        "subsample": 0.7,
+        "colsample_bytree": 0.6,
+        "min_child_weight": 8,
+        "gamma": 0.0,
+        "reg_alpha": 0.05,
+        "reg_lambda": 1.0,
+        "huber_slope": 0.5,
+        "lag_window": 70,
+        "n_estimators_used": 131
+    },
+    "preprocessing": {
+        "box_cox_lambda": -1.4386915682381394,
+        "scaler_type": "MinMaxScaler"
+    },
+    "ensemble": {
+        "strategy": "Inverse RMSE weighting",
+        "weight_lstm": 0.48464952615401263,
+        "weight_xgb": 0.5153504738459874
+    },
+    "baseline_reference": {
+        "rmse": 6.2009,
+        "mae": 2.3244,
+        "mape": 81.1
+    },
+    "evaluation": {
+        "lstm": {
+            "rmse": 5.904573160158663,
+            "mae": 2.2950814343995964,
+            "mape": 78.62329924392814,
+            "mape_n": 784,
+            "r2": -0.1360694124949,
+            "pearson_r": 0.0009371815802015601,
+            "explained_variance": 8.78308029528263e-07,
+            "bias": -2.043467481499627,
+            "residual_stats": {
+                "mean": -2.043467481499627,
+                "std": 5.539695375715134,
+                "skew": -4.598396393324806,
+                "kurtosis": 34.26988113694658,
+                "min": -80.0855279256485,
+                "max": 0.24157638191900954
+            }
+        },
+        "xgboost": {
+            "rmse": 5.531968432467577,
+            "mae": 3.134091934885568,
+            "mape": 176.85371401314958,
+            "mape_n": 784,
+            "r2": 0.002788593894861524,
+            "pearson_r": 0.05649292400573896,
+            "explained_variance": 0.0030710934136060075,
+            "bias": -0.09310970071527509,
+            "residual_stats": {
+                "mean": -0.09310970071527509,
+                "std": 5.531184802684729,
+                "skew": -4.601202508512578,
+                "kurtosis": 34.21590518719445,
+                "min": -77.70934785963631,
+                "max": 3.9384172717716117
+            }
+        },
+        "ensemble": {
+            "rmse": 5.628761148688349,
+            "mae": 2.6426681067286055,
+            "mape": 105.91244099731057,
+            "mape_n": 784,
+            "r2": -0.03241306366038166,
+            "pearson_r": 0.05649633857238936,
+            "explained_variance": 0.0027199264582337124,
+            "bias": -1.0383496750032026,
+            "residual_stats": {
+                "mean": -1.0383496750032026,
+                "std": 5.532158893361988,
+                "skew": -4.6074617524685255,
+                "kurtosis": 34.31830366227394,
+                "min": -78.86096240268573,
+                "max": 2.1330982385532193
+            }
+        }
+    },
+    "rainfall_intensity_performance": {
+        "lstm": [
+            {
+                "Intensity": "No Rain (0 in)",
+                "N": 1076,
+                "RMSE": 0.21753454873947548,
+                "MAE": 0.2174730262053643,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Light (0-0.2 in)",
+                "N": 0,
+                "RMSE": NaN,
+                "MAE": NaN,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Moderate (0.2-0.5 in)",
+                "N": 184,
+                "RMSE": 0.18684988216837184,
+                "MAE": 0.1593454373410416,
+                "MAPE (%)": 38.45961173851868
+            },
+            {
+                "Intensity": "Heavy (>0.5 in)",
+                "N": 600,
+                "RMSE": 10.391476391095232,
+                "MAE": 6.675884885525877,
+                "MAPE (%)": 90.9401634122537
+            }
+        ],
+        "xgboost": [
+            {
+                "Intensity": "No Rain (0 in)",
+                "N": 1076,
+                "RMSE": 2.164272602925283,
+                "MAE": 2.1363097995000975,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Light (0-0.2 in)",
+                "N": 0,
+                "RMSE": NaN,
+                "MAE": NaN,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Moderate (0.2-0.5 in)",
+                "N": 184,
+                "RMSE": 1.870186653319822,
+                "MAE": 1.8225861321117873,
+                "MAPE (%)": 518.2472619295353
+            },
+            {
+                "Intensity": "Heavy (>0.5 in)",
+                "N": 600,
+                "RMSE": 9.240973189228711,
+                "MAE": 5.325643010527469,
+                "MAPE (%)": 72.15969265212465
+            }
+        ],
+        "ensemble": [
+            {
+                "Intensity": "No Rain (0 in)",
+                "N": 1076,
+                "RMSE": 1.2195002792864214,
+                "MAE": 1.2063464665559107,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Light (0-0.2 in)",
+                "N": 0,
+                "RMSE": NaN,
+                "MAE": NaN,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Moderate (0.2-0.5 in)",
+                "N": 184,
+                "RMSE": 0.8924337370504667,
+                "MAE": 0.8620439361067953,
+                "MAPE (%)": 248.43953939963117
+            },
+            {
+                "Intensity": "Heavy (>0.5 in)",
+                "N": 600,
+                "RMSE": 9.762474035727745,
+                "MAE": 5.764529660428994,
+                "MAPE (%)": 62.20413082059889
+            }
+        ]
+    },
+    "artifacts": {
+        "lstm_model_path": "models\\v2_static_xgb_experiment\\lstm_model.keras",
+        "xgboost_model_path": "models\\v2_static_xgb_experiment\\xgboost_model.json",
+        "scaler_path": "models\\v2_static_xgb_experiment\\scaler.joblib",
+        "lstm_reload_max_abs_diff": 0.0,
+        "xgboost_reload_max_abs_diff": 0.0,
+        "reload_tolerance": 0.0001,
+        "lstm_reload_passed": true,
+        "xgboost_reload_passed": true
+    },
+    "cost_benefit_tradeoff": {
+        "lstm_train_seconds": 882.864120721817,
+        "xgboost_train_seconds": 0.39272069931030273,
+        "cost_ratio_lstm_over_xgboost": 2248.07126864539,
+        "ensemble_vs_xgboost_alone": {
+            "rmse_benefit": -0.09679271622077135,
+            "mae_benefit_overall": 0.4914238281569623,
+            "mae_benefit_no_rain": 0.9299633329441868,
+            "mae_benefit_moderate": 0.960542196004992,
+            "mae_benefit_heavy": -0.4388866499015247
+        },
+        "seconds_per_inch_no_rain_mae_gained": 949.3536889532434,
+        "seconds_per_inch_moderate_mae_gained": 919.1310120406503
+    },
+    "computational_cost": {
+        "lstm_train_seconds": 882.864120721817,
+        "lstm_predict_seconds": 1.2208552360534668,
+        "xgboost_train_seconds": 0.39272069931030273,
+        "xgboost_predict_seconds": 0.0032105445861816406
+    }
+}

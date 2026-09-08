@@ -1,1 +1,8 @@
 streamlit>=1.30
+pandas>=2.0
+numpy>=1.26
+scipy>=1.11
+scikit-learn>=1.3
+tensorflow>=2.16
+xgboost>=2.0
+joblib>=1.3

@@ -1,41 +1,51 @@
 """
-Panel-defense dashboard for the LSTM-XGBoost precipitation ensemble.
+Panel facing website for the LSTM plus XGBoost precipitation ensemble.
 
 Run locally with:
     cd streamlit_dashboard
     pip install -r requirements.txt
     streamlit run app.py
 
-The dashboard itself is a self-contained HTML/CSS/JS file (metrics_dashboard.html,
-the same one used as the Claude Artifact) embedded directly in the page. Editing
-the numbers means editing that file's `models` / `BASELINE` objects near the
-bottom of its <script> block; this app.py does not duplicate the data.
+Structure:
+    app.py            entry point and navigation
+    theme.py          shared CSS and header helper, matches metrics_dashboard.html
+    inference.py       loads saved model artifacts and runs inference only, no training
+    view_overview.py   landing page
+    view_forecast.py   upload a CSV and get a forecast from the saved ensemble
+    view_performance.py  live evaluation computed from the uploaded file, with a
+                          separate training time reference scorecard
 """
-
-from pathlib import Path
 
 import streamlit as st
 
+import view_forecast
+import view_overview
+import view_performance
+from inference import ACTIVE_MODEL_NAME
+from theme import apply_theme
+
 st.set_page_config(
-    page_title="Precipitation Model Scorecard",
-    page_icon="🌧️",
+    page_title="Precipitation Ensemble",
     layout="wide",
 )
 
-# Streamlit's default page padding fights the dashboard's own layout; strip it
-# so the embedded page reads as the whole screen, not a page-inside-a-page.
-st.markdown(
-    """
-    <style>
-        .block-container { padding: 0 !important; max-width: 100% !important; }
-        iframe { border: none; }
-        header[data-testid="stHeader"] { background: transparent; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+apply_theme()
 
-html_path = Path(__file__).parent / "metrics_dashboard.html"
-html = html_path.read_text(encoding="utf-8")
+PAGES = {
+    "Overview": view_overview,
+    "Forecast": view_forecast,
+    "Performance": view_performance,
+}
 
-st.components.v1.html(html, height=3050, scrolling=True)
+with st.sidebar:
+    st.markdown("### Precipitation Ensemble")
+    st.caption("LSTM plus XGBoost, inference only site")
+    choice = st.radio("Section", list(PAGES.keys()), label_visibility="collapsed")
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.caption(
+        f"Loaded model artifacts: **{ACTIVE_MODEL_NAME}** (from models/{ACTIVE_MODEL_NAME}/). "
+        "This site loads a model that was already trained elsewhere; it does not train "
+        "or tune anything itself."
+    )
+
+PAGES[choice].render()
