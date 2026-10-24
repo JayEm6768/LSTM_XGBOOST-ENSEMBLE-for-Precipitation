@@ -19,7 +19,7 @@
         "momentum": 0.9,
         "retrained_here": false,
         "cached_at": "models\\v2_prefinal\\lstm_model.keras",
-        "validation_data_note": "validation_data=(x_train, y_train) copied verbatim from the static notebook and the baseline: the val curve IS the training curve. No model selection depends on it.",
+        "validation_data_note": "validation_data=(x_train, y_train) copied from the static notebook and the baseline, so the val curve is the training curve. No model selection depends on it.",
         "reference_rmse": 5.9586,
         "rmse_gap_vs_reference": 0.04170466095321679
     },
@@ -116,8 +116,8 @@
         "n_estimators_used": 1499,
         "early_stopping_fired": true,
         "early_stopping_rounds": 60,
-        "dart_cost_note": "DART cannot evaluate incrementally, so eval cost is quadratic in rounds run (measured s/tree 0.020 -> 0.084). At es=60 early stopping rarely fires and fits run near their full budget; es=30 would fire at ~179 trees and cut fit time ~10x. es=60 kept to match runs/static/.",
-        "eval_metric_note": "eval_metric=rmse while the objective minimises quantile loss; kept for comparability with the sweep."
+        "dart_cost_note": "dart cannot evaluate incrementally, so eval cost is quadratic in rounds run (measured 0.020 -> 0.084 s/tree). At es=60 early stopping rarely fires and fits run near their full budget; es=30 would fire at about 179 trees and cut fit time roughly 10x. es=60 kept to match runs/static/.",
+        "eval_metric_note": "eval_metric=rmse while the objective minimises quantile loss, kept for comparability with the sweep."
     },
     "xgboost_config": {
         "fit_strategy": {
@@ -789,10 +789,70 @@
     },
     "computational_cost": {
         "lstm_train_seconds": 1003.6251456737518,
-        "lstm_predict_seconds": 3.5462043285369873,
-        "xgboost_train_seconds": 224.80112981796265,
-        "xgboost_predict_seconds": 0.06513190269470215,
+        "lstm_predict_seconds": 1.4067506790161133,
+        "xgboost_train_seconds": 133.53366589546204,
+        "xgboost_predict_seconds": 0.036284685134887695,
         "search_seconds": 3221.0806591510773,
-        "direct_horizon_seconds": 1416.95219373703
+        "direct_horizon_seconds": 961.5932247638702
+    },
+    "cost_benefit_tradeoff": {
+        "cost": {
+            "lstm_train_seconds": 1003.6251456737518,
+            "xgboost_train_seconds": 133.53366589546204,
+            "ensemble_train_seconds": 1137.1588115692139,
+            "lstm_predict_seconds": 1.4067506790161133,
+            "xgboost_predict_seconds": 0.036284685134887695,
+            "ensemble_predict_seconds": 1.443035364151001,
+            "ms_per_day_forecast": 0.7758254645973124,
+            "cost_ratio_lstm_over_xgboost": 7.515896002281914,
+            "one_off_search_seconds": 3221.0806591510773,
+            "one_off_horizon_seconds": 961.5932247638702,
+            "total_pipeline_seconds": 5321.275730848312,
+            "lstm_parameters": 13217,
+            "xgboost_trees": 1499
+        },
+        "benefit": {
+            "vs_xgboost_alone": {
+                "rmse": 0.10862816893282456,
+                "mae": 0.8541397702803653,
+                "mape": 115.08207361296539,
+                "r2": 0.0401219543380551,
+                "mae_by_band": {
+                    "No Rain (0 in)": 1.4365667196771812,
+                    "Moderate (0.2-0.5 in)": 1.4250781944696413,
+                    "Heavy (>0.5 in)": -0.3654336757226391
+                }
+            },
+            "vs_lstm_alone": {
+                "rmse": 0.3038367249307061,
+                "mae": -0.5999839192027498,
+                "mape": -54.19269133640917,
+                "r2": 0.11415519754863412,
+                "mae_by_band": {
+                    "No Rain (0 in)": -1.4880782146224851,
+                    "Moderate (0.2-0.5 in)": -1.088080386073333,
+                    "Heavy (>0.5 in)": 1.1423481004236198
+                }
+            },
+            "vs_baseline": {
+                "rmse": 0.5878413858839231,
+                "mae": -0.5649549113350165,
+                "mape": -55.104086715825474
+            },
+            "best_model_by_band": {
+                "No Rain (0 in)": "LSTM",
+                "Moderate (0.2-0.5 in)": "LSTM",
+                "Heavy (>0.5 in)": "XGBoost"
+            }
+        },
+        "tradeoff": {
+            "seconds_per_inch_rmse_gained": 9239.087388966222,
+            "seconds_per_inch_mae_gained": 1175.0127796347886,
+            "seconds_per_inch_heavy_mae_gained": null,
+            "justified_everyday_forecasting": true,
+            "justified_warning_system": false,
+            "heavy_band_label": "Heavy (>0.5 in)",
+            "heavy_band_gain": -0.3654336757226391
+        }
     }
 }
