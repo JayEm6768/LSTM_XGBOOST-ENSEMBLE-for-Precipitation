@@ -1,0 +1,798 @@
+{
+    "model_type": "LSTM_XGBoost_Ensemble_prefinal",
+    "derived_from": "runs/static/LSTM_XGBoost_Ensemble_Precipitation_STATIC.ipynb",
+    "edits_vs_static": [
+        "XGBoost hyperparameters searched (ParameterSampler + refinement), not hardcoded",
+        "dart (rate_drop 0.1, skip_drop 0.5) / reg:quantileerror(alpha 0.5) / identity output",
+        "inverse-RMSE ensemble weighting (unchanged mechanism, re-derived)",
+        "added a 7-day horizon by recursive and direct-per-horizon methods"
+    ],
+    "lstm_config": {
+        "window_size": 70,
+        "units_layer1": 32,
+        "units_layer2": 32,
+        "dense_units": 16,
+        "dropout": 0.5,
+        "epochs": 100,
+        "batch_size": 60,
+        "learning_rate": 1e-07,
+        "momentum": 0.9,
+        "retrained_here": false,
+        "cached_at": "models\\v2_prefinal\\lstm_model.keras",
+        "validation_data_note": "validation_data=(x_train, y_train) copied verbatim from the static notebook and the baseline: the val curve IS the training curve. No model selection depends on it.",
+        "reference_rmse": 5.9586,
+        "rmse_gap_vs_reference": 0.04170466095321679
+    },
+    "hyperparameter_search": {
+        "technique": "ParameterSampler random search + local refinement pass",
+        "source": "LSTM_XGBoost_Ensemble_Precipitation_REFACTORED 2.2.ipynb cell 23",
+        "space": {
+            "n_estimators": [
+                400,
+                500,
+                600,
+                800,
+                1000,
+                1200
+            ],
+            "max_depth": [
+                2,
+                3,
+                4,
+                5,
+                6
+            ],
+            "learning_rate": [
+                0.01,
+                0.02,
+                0.03,
+                0.05,
+                0.08,
+                0.1
+            ],
+            "subsample": [
+                0.7,
+                0.75,
+                0.85,
+                0.9,
+                1.0
+            ],
+            "colsample_bytree": [
+                0.6,
+                0.7,
+                0.8,
+                0.9,
+                1.0
+            ],
+            "min_child_weight": [
+                1,
+                2,
+                3,
+                5,
+                6,
+                8
+            ],
+            "gamma": [
+                0.0,
+                0.05,
+                0.1,
+                0.2,
+                0.5
+            ],
+            "reg_alpha": [
+                0.0,
+                0.05,
+                0.1,
+                0.2,
+                0.3,
+                0.5
+            ],
+            "reg_lambda": [
+                0.5,
+                1.0,
+                1.5,
+                2.0,
+                3.0,
+                5.0
+            ]
+        },
+        "n_draws": 40,
+        "n_refine": 30,
+        "n_fits": 70,
+        "criterion": "RMSE in inches on the last 12% of training, chronological",
+        "selected": {
+            "subsample": 0.75,
+            "reg_lambda": 3.0,
+            "reg_alpha": 0.0,
+            "n_estimators": 1500,
+            "min_child_weight": 8,
+            "max_depth": 7,
+            "learning_rate": 0.15,
+            "gamma": 0.0,
+            "colsample_bytree": 0.7000000000000001
+        },
+        "selected_validation_rmse": 5.722704813479871,
+        "search_seconds": 3221.0806591510773,
+        "n_estimators_used": 1499,
+        "early_stopping_fired": true,
+        "early_stopping_rounds": 60,
+        "dart_cost_note": "DART cannot evaluate incrementally, so eval cost is quadratic in rounds run (measured s/tree 0.020 -> 0.084). At es=60 early stopping rarely fires and fits run near their full budget; es=30 would fire at ~179 trees and cut fit time ~10x. es=60 kept to match runs/static/.",
+        "eval_metric_note": "eval_metric=rmse while the objective minimises quantile loss; kept for comparability with the sweep."
+    },
+    "xgboost_config": {
+        "fit_strategy": {
+            "booster": "dart",
+            "tree_method": "hist",
+            "rate_drop": 0.1,
+            "skip_drop": 0.5
+        },
+        "objective": {
+            "objective": "reg:quantileerror",
+            "quantile_alpha": 0.5
+        },
+        "output_transform": "identity",
+        "lag_window": 70,
+        "feature_set": "lag_only",
+        "quantile_alpha_searched": false,
+        "dart_differs_from_gbtree": true
+    },
+    "preprocessing": {
+        "box_cox_lambda": -1.4386915682381394,
+        "scaler_type": "MinMaxScaler",
+        "inverse_transform_asymptote": 0.6950760135646218,
+        "clipped_test_predictions": 0
+    },
+    "ensemble": {
+        "strategy": "Inverse RMSE weighting",
+        "formula": "w_i = (1/RMSE_i) / sum_j(1/RMSE_j), RMSE on the last 8% of training",
+        "hardcoded": false,
+        "weight_lstm": 0.4911935472335142,
+        "weight_xgb": 0.5088064527664858,
+        "lstm_validation_rmse": 6.218448024183924,
+        "xgb_validation_rmse": 6.003189477410125,
+        "per_lead_weights": {
+            "recursive": [
+                {
+                    "lead": 1,
+                    "w_lstm": 0.49257769067815166,
+                    "w_xgb": 0.5074223093218484
+                },
+                {
+                    "lead": 2,
+                    "w_lstm": 0.49414602831802024,
+                    "w_xgb": 0.5058539716819799
+                },
+                {
+                    "lead": 3,
+                    "w_lstm": 0.49023293080636204,
+                    "w_xgb": 0.5097670691936379
+                },
+                {
+                    "lead": 4,
+                    "w_lstm": 0.49005943104315075,
+                    "w_xgb": 0.5099405689568492
+                },
+                {
+                    "lead": 5,
+                    "w_lstm": 0.490005355042675,
+                    "w_xgb": 0.5099946449573249
+                },
+                {
+                    "lead": 6,
+                    "w_lstm": 0.49051456145779365,
+                    "w_xgb": 0.5094854385422063
+                },
+                {
+                    "lead": 7,
+                    "w_lstm": 0.4911245349043678,
+                    "w_xgb": 0.5088754650956322
+                }
+            ],
+            "direct": [
+                {
+                    "lead": 1,
+                    "w_lstm": 0.49306352993546404,
+                    "w_xgb": 0.5069364700645359
+                },
+                {
+                    "lead": 2,
+                    "w_lstm": 0.4936480740946311,
+                    "w_xgb": 0.5063519259053689
+                },
+                {
+                    "lead": 3,
+                    "w_lstm": 0.49327003562879884,
+                    "w_xgb": 0.5067299643712012
+                },
+                {
+                    "lead": 4,
+                    "w_lstm": 0.49288092592086824,
+                    "w_xgb": 0.5071190740791318
+                },
+                {
+                    "lead": 5,
+                    "w_lstm": 0.49282773087579584,
+                    "w_xgb": 0.5071722691242042
+                },
+                {
+                    "lead": 6,
+                    "w_lstm": 0.4936066829854497,
+                    "w_xgb": 0.5063933170145503
+                },
+                {
+                    "lead": 7,
+                    "w_lstm": 0.49441616042601744,
+                    "w_xgb": 0.5055838395739826
+                }
+            ]
+        }
+    },
+    "baseline_reference": {
+        "rmse": 6.2009,
+        "mae": 2.3244,
+        "mape": 81.1
+    },
+    "evaluation_1day": {
+        "lstm": {
+            "rmse": 5.916895339046783,
+            "mae": 2.2893709921322665,
+            "mape": 82.0113953794163,
+            "mape_n": 784,
+            "r2": -0.14081605790409202,
+            "pearson_r": -0.010479505625720207,
+            "explained_variance": -2.5906027137478915e-05,
+            "bias": -2.0786061755637504,
+            "pred_sd": 0.0064850327826549295,
+            "residual_stats": {
+                "mean": -2.0786061755637504,
+                "std": 5.53976956381236,
+                "skew": -4.598364317234872,
+                "kurtosis": 34.26887592681797,
+                "min": -80.12129172625687,
+                "max": 0.19343758593853977
+            }
+        },
+        "xgboost": {
+            "rmse": 5.721686783048901,
+            "mae": 3.7434946816153816,
+            "mape": 251.28616032879086,
+            "mape_n": 784,
+            "r2": -0.06678281469351299,
+            "pearson_r": -0.03684742475002448,
+            "explained_variance": -0.04472367145054035,
+            "bias": 0.8227736885324153,
+            "pred_sd": 0.9850600439617011,
+            "residual_stats": {
+                "mean": 0.8227736885324153,
+                "std": 5.662220686336346,
+                "skew": -4.393351663335201,
+                "kurtosis": 32.050837230273316,
+                "min": -77.36140183335222,
+                "max": 7.614547345221618
+            }
+        },
+        "ensemble": {
+            "rmse": 5.613058614116077,
+            "mae": 2.8893549113350163,
+            "mape": 136.20408671582547,
+            "mape_n": 784,
+            "r2": -0.026660860355457894,
+            "pearson_r": -0.03697741824997154,
+            "explained_variance": -0.014837311337041026,
+            "bias": -0.6023653787848717,
+            "pred_sd": 0.5003456824052636,
+            "residual_stats": {
+                "mean": -0.6023653787848717,
+                "std": 5.5806435969289465,
+                "skew": -4.546630978900792,
+                "kurtosis": 33.635517877348896,
+                "min": -78.71704193982198,
+                "max": 3.9573670766116833
+            }
+        },
+        "n_scored_days": 1860
+    },
+    "rainfall_intensity_performance": {
+        "lstm": [
+            {
+                "Intensity": "No Rain (0 in)",
+                "N": 1076,
+                "RMSE": 0.1822886528746535,
+                "MAE": 0.1821666165508549,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Light (0-0.2 in)",
+                "N": 0,
+                "RMSE": NaN,
+                "MAE": NaN,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Moderate (0.2-0.5 in)",
+                "N": 184,
+                "RMSE": 0.21717546385014033,
+                "MAE": 0.1940486775590399,
+                "MAPE (%)": 48.22357313065937
+            },
+            {
+                "Intensity": "Heavy (>0.5 in)",
+                "N": 600,
+                "RMSE": 10.4142143951521,
+                "MAE": 6.710856348810721,
+                "MAPE (%)": 92.3729942023684
+            }
+        ],
+        "xgboost": [
+            {
+                "Intensity": "No Rain (0 in)",
+                "N": 1076,
+                "RMSE": 3.2676560768229983,
+                "MAE": 3.106811550850521,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Light (0-0.2 in)",
+                "N": 0,
+                "RMSE": NaN,
+                "MAE": NaN,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Moderate (0.2-0.5 in)",
+                "N": 184,
+                "RMSE": 2.8816172447682207,
+                "MAE": 2.7072072581020143,
+                "MAPE (%)": 771.5940077025874
+            },
+            {
+                "Intensity": "Heavy (>0.5 in)",
+                "N": 600,
+                "RMSE": 8.932633542640204,
+                "MAE": 5.2030745726644625,
+                "MAPE (%)": 91.72508713415988
+            }
+        ],
+        "ensemble": [
+            {
+                "Intensity": "No Rain (0 in)",
+                "N": 1076,
+                "RMSE": 1.7476317204175085,
+                "MAE": 1.67024483117334,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Light (0-0.2 in)",
+                "N": 0,
+                "RMSE": NaN,
+                "MAE": NaN,
+                "MAPE (%)": NaN
+            },
+            {
+                "Intensity": "Moderate (0.2-0.5 in)",
+                "N": 184,
+                "RMSE": 1.3804287446439467,
+                "MAE": 1.282129063632373,
+                "MAPE (%)": 368.9049020887067
+            },
+            {
+                "Intensity": "Heavy (>0.5 in)",
+                "N": 600,
+                "RMSE": 9.571223342971576,
+                "MAE": 5.568508248387102,
+                "MAPE (%)": 64.84250333480855
+            }
+        ]
+    },
+    "event_detection": {
+        "LSTM": [
+            {
+                "Threshold (in)": 0.0,
+                "N events": 784,
+                "hits": 784,
+                "false alarms": 1076,
+                "misses": 0,
+                "POD": 1.0,
+                "FAR": 0.578494623655914,
+                "CSI": 0.421505376344086,
+                "HSS": 0.0,
+                "AUC": 0.5622789194674153
+            },
+            {
+                "Threshold (in)": 0.5,
+                "N events": 600,
+                "hits": 0,
+                "false alarms": 0,
+                "misses": 600,
+                "POD": 0.0,
+                "FAR": NaN,
+                "CSI": 0.0,
+                "HSS": 0.0,
+                "AUC": 0.5433511904761904
+            },
+            {
+                "Threshold (in)": 2.0,
+                "N events": 392,
+                "hits": 0,
+                "false alarms": 0,
+                "misses": 392,
+                "POD": 0.0,
+                "FAR": NaN,
+                "CSI": 0.0,
+                "HSS": 0.0,
+                "AUC": 0.5075314185619753
+            },
+            {
+                "Threshold (in)": 5.0,
+                "N events": 263,
+                "hits": 0,
+                "false alarms": 0,
+                "misses": 263,
+                "POD": 0.0,
+                "FAR": NaN,
+                "CSI": 0.0,
+                "HSS": 0.0,
+                "AUC": 0.4832706762441936
+            }
+        ],
+        "XGBoost": [
+            {
+                "Threshold (in)": 0.0,
+                "N events": 784,
+                "hits": 784,
+                "false alarms": 1076,
+                "misses": 0,
+                "POD": 1.0,
+                "FAR": 0.578494623655914,
+                "CSI": 0.421505376344086,
+                "HSS": 0.0,
+                "AUC": 0.4886022020332297
+            },
+            {
+                "Threshold (in)": 0.5,
+                "N events": 600,
+                "hits": 600,
+                "false alarms": 1260,
+                "misses": 0,
+                "POD": 1.0,
+                "FAR": 0.6774193548387096,
+                "CSI": 0.3225806451612903,
+                "HSS": 0.0,
+                "AUC": 0.4874325396825397
+            },
+            {
+                "Threshold (in)": 2.0,
+                "N events": 392,
+                "hits": 350,
+                "false alarms": 1292,
+                "misses": 42,
+                "POD": 0.8928571428571429,
+                "FAR": 0.7868453105968332,
+                "CSI": 0.20783847980997625,
+                "HSS": 0.005878412379923651,
+                "AUC": 0.49917282989490075
+            },
+            {
+                "Threshold (in)": 5.0,
+                "N events": 263,
+                "hits": 14,
+                "false alarms": 72,
+                "misses": 249,
+                "POD": 0.053231939163498096,
+                "FAR": 0.8372093023255814,
+                "CSI": 0.041791044776119404,
+                "HSS": 0.011332927087749045,
+                "AUC": 0.4970655530450393
+            }
+        ],
+        "Ensemble": [
+            {
+                "Threshold (in)": 0.0,
+                "N events": 784,
+                "hits": 784,
+                "false alarms": 1076,
+                "misses": 0,
+                "POD": 1.0,
+                "FAR": 0.578494623655914,
+                "CSI": 0.421505376344086,
+                "HSS": 0.0,
+                "AUC": 0.4890704423033154
+            },
+            {
+                "Threshold (in)": 0.5,
+                "N events": 600,
+                "hits": 600,
+                "false alarms": 1260,
+                "misses": 0,
+                "POD": 1.0,
+                "FAR": 0.6774193548387096,
+                "CSI": 0.3225806451612903,
+                "HSS": 0.0,
+                "AUC": 0.487760582010582
+            },
+            {
+                "Threshold (in)": 2.0,
+                "N events": 392,
+                "hits": 90,
+                "false alarms": 337,
+                "misses": 302,
+                "POD": 0.22959183673469388,
+                "FAR": 0.7892271662763466,
+                "CSI": 0.12345679012345678,
+                "HSS": 2.6923063979296165e-05,
+                "AUC": 0.4993552938886726
+            },
+            {
+                "Threshold (in)": 5.0,
+                "N events": 263,
+                "hits": 0,
+                "false alarms": 0,
+                "misses": 263,
+                "POD": 0.0,
+                "FAR": NaN,
+                "CSI": 0.0,
+                "HSS": 0.0,
+                "AUC": 0.4971131708455255
+            }
+        ]
+    },
+    "multi_horizon": {
+        "horizon": 7,
+        "n_anchors": 1854,
+        "n_validation_anchors": 1077,
+        "lstm_method": "recursive (architecture held fixed, not retrained per horizon)",
+        "xgb_methods": [
+            "recursive",
+            "direct-per-horizon"
+        ],
+        "train_mean_constant": 2.002936630602781,
+        "per_lead_results": [
+            {
+                "Lead day": 1,
+                "XGB method": "recursive",
+                "w_lstm": 0.49257769067815166,
+                "w_xgb": 0.5074223093218484,
+                "LSTM RMSE": 5.926370022644889,
+                "XGB RMSE": 5.729957909129285,
+                "ENS RMSE": 5.622151987175719,
+                "ENS MAE": 2.893796898461429,
+                "ENS MAPE (%)": 135.94313728481845,
+                "ENS R2": -0.027059165688824383,
+                "ENS bias": -0.6108688657335972,
+                "ENS pred sd": 0.4989555853801635,
+                "XGB pred sd": 0.9850001384716633,
+                "Persistence RMSE": 7.494819857964824,
+                "Train-mean RMSE": 5.553892344360441
+            },
+            {
+                "Lead day": 1,
+                "XGB method": "direct",
+                "w_lstm": 0.49306352993546404,
+                "w_xgb": 0.5069364700645359,
+                "LSTM RMSE": 5.926370022644889,
+                "XGB RMSE": 5.749271575312436,
+                "ENS RMSE": 5.623365307015472,
+                "ENS MAE": 2.9074397343402096,
+                "ENS MAPE (%)": 137.51549507975574,
+                "ENS R2": -0.02750251397662673,
+                "ENS bias": -0.5891443688495404,
+                "ENS pred sd": 0.5315100433043578,
+                "XGB pred sd": 1.0499843606198707,
+                "Persistence RMSE": 7.494819857964824,
+                "Train-mean RMSE": 5.553892344360441
+            },
+            {
+                "Lead day": 2,
+                "XGB method": "recursive",
+                "w_lstm": 0.49414602831802024,
+                "w_xgb": 0.5058539716819799,
+                "LSTM RMSE": 5.926584543445195,
+                "XGB RMSE": 5.7480402593574595,
+                "ENS RMSE": 5.621034990742114,
+                "ENS MAE": 2.910620080609664,
+                "ENS MAPE (%)": 137.64616408447708,
+                "ENS R2": -0.026726781461089644,
+                "ENS bias": -0.5821198168137067,
+                "ENS pred sd": 0.5201697159895035,
+                "XGB pred sd": 1.0301470684502136,
+                "Persistence RMSE": 7.92479756189262,
+                "Train-mean RMSE": 5.553721531604715
+            },
+            {
+                "Lead day": 2,
+                "XGB method": "direct",
+                "w_lstm": 0.4936480740946311,
+                "w_xgb": 0.5063519259053689,
+                "LSTM RMSE": 5.926584543445195,
+                "XGB RMSE": 5.723396351028935,
+                "ENS RMSE": 5.6166719525058,
+                "ENS MAE": 2.88496801149968,
+                "ENS MAPE (%)": 132.71582543873672,
+                "ENS R2": -0.02513351272488551,
+                "ENS bias": -0.6145999565351606,
+                "ENS pred sd": 0.5241066589557364,
+                "XGB pred sd": 1.0368361242016828,
+                "Persistence RMSE": 7.92479756189262,
+                "Train-mean RMSE": 5.553721531604715
+            },
+            {
+                "Lead day": 3,
+                "XGB method": "recursive",
+                "w_lstm": 0.49023293080636204,
+                "w_xgb": 0.5097670691936379,
+                "LSTM RMSE": 5.9266384209031715,
+                "XGB RMSE": 5.65667355722324,
+                "ENS RMSE": 5.62505411409003,
+                "ENS MAE": 2.8168992175088814,
+                "ENS MAPE (%)": 126.3205877242443,
+                "ENS R2": -0.028218459242114413,
+                "ENS bias": -0.7518055973430493,
+                "ENS pred sd": 0.4288214494100835,
+                "XGB pred sd": 0.842693663538634,
+                "Persistence RMSE": 7.762883295902589,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 3,
+                "XGB method": "direct",
+                "w_lstm": 0.49327003562879884,
+                "w_xgb": 0.5067299643712012,
+                "LSTM RMSE": 5.9266384209031715,
+                "XGB RMSE": 5.730460538531421,
+                "ENS RMSE": 5.614911525924222,
+                "ENS MAE": 2.9058335588278412,
+                "ENS MAPE (%)": 136.75865656490012,
+                "ENS R2": -0.024513821372094347,
+                "ENS bias": -0.5911770363872609,
+                "ENS pred sd": 0.5196278231128643,
+                "XGB pred sd": 1.0266993333221497,
+                "Persistence RMSE": 7.762883295902589,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 4,
+                "XGB method": "recursive",
+                "w_lstm": 0.49005943104315075,
+                "w_xgb": 0.5099405689568492,
+                "LSTM RMSE": 5.926737830605325,
+                "XGB RMSE": 5.640410954257861,
+                "ENS RMSE": 5.624817286502513,
+                "ENS MAE": 2.799493187413452,
+                "ENS MAPE (%)": 124.45914140324999,
+                "ENS R2": -0.028131880387571195,
+                "ENS bias": -0.7809167404700943,
+                "ENS pred sd": 0.4082634662498068,
+                "XGB pred sd": 0.8019347311514362,
+                "Persistence RMSE": 7.869267917794373,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 4,
+                "XGB method": "direct",
+                "w_lstm": 0.49288092592086824,
+                "w_xgb": 0.5071190740791318,
+                "LSTM RMSE": 5.926737830605325,
+                "XGB RMSE": 5.744069585824594,
+                "ENS RMSE": 5.6235668399912315,
+                "ENS MAE": 2.9043891875495373,
+                "ENS MAPE (%)": 139.01980142181154,
+                "ENS R2": -0.027674805622393883,
+                "ENS bias": -0.5991572275922947,
+                "ENS pred sd": 0.5270481699486583,
+                "XGB pred sd": 1.0404887444018993,
+                "Persistence RMSE": 7.869267917794373,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 5,
+                "XGB method": "recursive",
+                "w_lstm": 0.490005355042675,
+                "w_xgb": 0.5099946449573249,
+                "LSTM RMSE": 5.9268241180910035,
+                "XGB RMSE": 5.639364709578517,
+                "ENS RMSE": 5.628347063110016,
+                "ENS MAE": 2.7951495752435136,
+                "ENS MAPE (%)": 123.50038519182888,
+                "ENS R2": -0.02942266526615378,
+                "ENS bias": -0.794599620555477,
+                "ENS pred sd": 0.3929350341577234,
+                "XGB pred sd": 0.7716603465118684,
+                "Persistence RMSE": 7.910066572558555,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 5,
+                "XGB method": "direct",
+                "w_lstm": 0.49282773087579584,
+                "w_xgb": 0.5071722691242042,
+                "LSTM RMSE": 5.9268241180910035,
+                "XGB RMSE": 5.74017108643425,
+                "ENS RMSE": 5.621026405035592,
+                "ENS MAE": 2.9033874672319158,
+                "ENS MAPE (%)": 137.62275948132253,
+                "ENS R2": -0.026746515313052832,
+                "ENS bias": -0.5938405188845811,
+                "ENS pred sd": 0.5173865886789007,
+                "XGB pred sd": 1.0212948335758796,
+                "Persistence RMSE": 7.910066572558555,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 6,
+                "XGB method": "recursive",
+                "w_lstm": 0.49051456145779365,
+                "w_xgb": 0.5094854385422063,
+                "LSTM RMSE": 5.926941379425142,
+                "XGB RMSE": 5.648222468323512,
+                "ENS RMSE": 5.627203444051273,
+                "ENS MAE": 2.80444883750285,
+                "ENS MAPE (%)": 124.71748839223716,
+                "ENS R2": -0.02900437273290324,
+                "ENS bias": -0.7751613951952355,
+                "ENS pred sd": 0.40933460301261293,
+                "XGB pred sd": 0.8045882754855825,
+                "Persistence RMSE": 7.979626498195321,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 6,
+                "XGB method": "direct",
+                "w_lstm": 0.4936066829854497,
+                "w_xgb": 0.5063933170145503,
+                "LSTM RMSE": 5.926941379425142,
+                "XGB RMSE": 5.733740057580728,
+                "ENS RMSE": 5.6162988640656994,
+                "ENS MAE": 2.9088606228547707,
+                "ENS MAPE (%)": 137.82694740434664,
+                "ENS R2": -0.025020159784819862,
+                "ENS bias": -0.592860198958841,
+                "ENS pred sd": 0.5237193627849266,
+                "XGB pred sd": 1.03525799119904,
+                "Persistence RMSE": 7.979626498195321,
+                "Train-mean RMSE": 5.553667544491867
+            },
+            {
+                "Lead day": 7,
+                "XGB method": "recursive",
+                "w_lstm": 0.4911245349043678,
+                "w_xgb": 0.5088754650956322,
+                "LSTM RMSE": 5.925980076911325,
+                "XGB RMSE": 5.655560689585141,
+                "ENS RMSE": 5.626991515422077,
+                "ENS MAE": 2.80819251883538,
+                "ENS MAPE (%)": 124.84727372663329,
+                "ENS R2": -0.029042662123974994,
+                "ENS bias": -0.7638346052377549,
+                "ENS pred sd": 0.42443686475971387,
+                "XGB pred sd": 0.835115623512781,
+                "Persistence RMSE": 7.765062962059369,
+                "Train-mean RMSE": 5.5532505949336715
+            },
+            {
+                "Lead day": 7,
+                "XGB method": "direct",
+                "w_lstm": 0.49441616042601744,
+                "w_xgb": 0.5055838395739826,
+                "LSTM RMSE": 5.925980076911325,
+                "XGB RMSE": 5.733823112768415,
+                "ENS RMSE": 5.617013001144667,
+                "ENS MAE": 2.8957300974804006,
+                "ENS MAPE (%)": 136.88717997466057,
+                "ENS R2": -0.025396233189628692,
+                "ENS bias": -0.6011240907798706,
+                "ENS pred sd": 0.5331225310842058,
+                "XGB pred sd": 1.0555578251573527,
+                "Persistence RMSE": 7.765062962059369,
+                "Train-mean RMSE": 5.5532505949336715
+            }
+        ]
+    },
+    "computational_cost": {
+        "lstm_train_seconds": 1003.6251456737518,
+        "lstm_predict_seconds": 3.5462043285369873,
+        "xgboost_train_seconds": 224.80112981796265,
+        "xgboost_predict_seconds": 0.06513190269470215,
+        "search_seconds": 3221.0806591510773,
+        "direct_horizon_seconds": 1416.95219373703
+    }
+}
