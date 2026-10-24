@@ -34,6 +34,39 @@ def _clear_forecast_state():
         st.session_state.pop(key, None)
 
 
+def _render_seven_day(table: pd.DataFrame):
+    """Seven-day outlook, shown below the one-day forecast and clearly secondary
+    to it. The study evaluates the one-day-ahead forecast; this section exists
+    for practical use."""
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.subheader("Seven-day outlook")
+    st.markdown(
+        "The one-day forecast above is what this study evaluates. The seven-day outlook below "
+        "is a practical extension: each lead day is produced by its own model, trained directly "
+        "on the value that many days ahead, so no forecast is fed back into another.",
+    )
+
+    display = table.copy()
+    display["Date"] = display["Date"].dt.date
+    for col in ("LSTM", "XGBoost", "Ensemble"):
+        display[col] = display[col].map(lambda v: f"{v:.2f}")
+    display = display.rename(
+        columns={"LSTM": "LSTM (in)", "XGBoost": "XGBoost (in)", "Ensemble": "Ensemble (in)"}
+    )
+    st.dataframe(display, hide_index=True, use_container_width=True)
+
+    chart = table.set_index("Date")[["LSTM", "XGBoost", "Ensemble"]]
+    st.line_chart(chart, use_container_width=True)
+
+    spread = float(table["Ensemble"].max() - table["Ensemble"].min())
+    st.caption(
+        "Read this as an outlook rather than a sharpening forecast. Measured on the held-out "
+        "test period, forecast error is essentially flat from lead day 1 to lead day 7, so a "
+        "day-7 figure is not meaningfully less accurate than a day-1 one -- but neither is it "
+        f"more informative. Across these seven days the ensemble spans {spread:.2f} in."
+    )
+
+
 def _render_results(clean_df: pd.DataFrame, result: inference.InferenceResult, artifacts, filename: str):
     gap_note = inference.gap_summary(clean_df)
     if gap_note:
@@ -64,6 +97,9 @@ def _render_results(clean_df: pd.DataFrame, result: inference.InferenceResult, a
         "training. Negative raw outputs from the inverse transform are shown as zero, since "
         "precipitation cannot be negative."
     )
+
+    if result.forecast_7day is not None and not result.forecast_7day.empty:
+        _render_seven_day(result.forecast_7day)
 
     if len(result.backtest_dates) == 0:
         st.markdown(
