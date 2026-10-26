@@ -72,6 +72,7 @@ Go to the Forecast section in the sidebar, upload a precipitation CSV, and retur
             """,
             unsafe_allow_html=True,
         )
+        _render_cost_benefit(None)
         _render_reference_scorecard()
         return
 
@@ -104,6 +105,7 @@ Go to the Forecast section in the sidebar, upload a precipitation CSV, and retur
     _render_agreement_charts(result, actual, preds, metrics)
     _render_regime_charts(actual, preds)
     _render_event_charts(actual, preds)
+    _render_cost_benefit(result)
     _render_reference_scorecard()
 
 
@@ -359,6 +361,190 @@ def _render_event_charts(actual, preds):
         with tab:
             st.dataframe(tables[name].round(4), hide_index=True, use_container_width=True)
 
+
+def _cost_tiles(xgb_seconds: float, delta_t: float):
+    """The three cost figures, framed as ensemble against XGBoost alone.
+
+    Deliberately not labelled "LSTM training time". That is the same number as
+    delta_t, but the metric scores the ensemble, not the LSTM on its own, and
+    labelling it that way misreads the whole section.
+    """
+    ens_seconds = xgb_seconds + delta_t
+    c1, c2, c3 = st.columns(3)
+    c1.metric("XGBoost alone", f"{xgb_seconds:,.1f} s", help="The cheaper fallback option.")
+    c2.metric("Ensemble", f"{ens_seconds:,.1f} s", help="Both models trained.")
+    c3.metric(
+        "Extra cost of the ensemble", f"{delta_t:,.1f} s",
+        help="This is the delta T in the formula. It equals the LSTM's training time, "
+             "because the LSTM is the only thing the ensemble adds on top of XGBoost.",
+    )
+
+
+def _verdict(rows, by_band):
+    """Read the verdict off the signs rather than hardcoding a conclusion."""
+    overall = {r["Measure"]: r["Accuracy gained"] for r in rows}
+    good = [m for m, v in overall.items() if v > 0]
+    bad = [m for m, v in overall.items() if v <= 0]
+    lines = []
+    if good and not bad:
+        lines.append(f"**Everyday forecasting: worth the cost.** The ensemble beats XGBoost alone "
+                     f"on {', '.join(good)}.")
+    elif good:
+        lines.append(f"**Everyday forecasting: mixed.** The ensemble wins on {', '.join(good)} "
+                     f"and loses on {', '.join(bad)}.")
+    else:
+        lines.append("**Everyday forecasting: not worth the cost.** XGBoost alone is as accurate "
+                     "or better on every headline measure.")
+
+    heavy = [(k, v) for k, v in by_band.items() if k.lower().startswith("heavy")]
+    if heavy:
+        label, v = heavy[0]
+        if v > 0:
+            lines.append(f"**Heavy rain: worth the cost.** The ensemble is also better on "
+                         f"{label}, by {v:.4f} in.")
+        else:
+            lines.append(f"**Heavy rain: not worth the cost.** On {label} the ensemble is "
+                         f"{abs(v):.4f} in *worse* than XGBoost alone, so for a warning system "
+                         f"the extra training time buys a less accurate forecast.")
+    for line in lines:
+        st.markdown(line)
+
+
+def _cost_table(rows):
+    df = pd.DataFrame(rows)
+    df["Accuracy gained"] = df["Accuracy gained"].round(4)
+    df["Cost effectiveness"] = df["Cost effectiveness"].map(
+        lambda v: f"{v:.6f}" if np.isfinite(v) else "n/a")
+    st.dataframe(df, hide_index=True, use_container_width=True)
+
+
+def _render_live_cost(result, cb):
+    """Cost effectiveness measured on the file the user uploaded."""
+    if result is None or getattr(result, "backtest_actual", None) is None \
+            or len(result.backtest_actual) == 0:
+        st.markdown(
+            '<div class="note-box">Upload a precipitation CSV on the Forecast page and this tab '
+            "will show the same analysis measured on your own data, so you can compare it against "
+            "what was recorded when the model was trained.</div>",
+            unsafe_allow_html=True,
+        )
+        return None
+
+    actual = result.backtest_actual
+    m_xgb = inference.evaluate_all(actual, result.backtest_xgb)
+    m_ens = inference.evaluate_all(actual, result.backtest_ensemble)
+    rows = inference.cost_effectiveness(m_xgb, m_ens, cb["delta_t"])
+    bands = inference.band_benefit(
+        inference.rainfall_intensity_performance(actual, result.backtest_xgb),
+        inference.rainfall_intensity_performance(actual, result.backtest_ensemble),
+    )
+
+    _cost_tiles(cb["xgb_train_seconds"], cb["delta_t"])
+    st.caption(
+        f"Measured over {len(actual):,} day(s) from your file. The training times above are the "
+        "same as the other tab, because nothing is retrained here."
+    )
+    if rows:
+        _cost_table(rows)
+    if bands:
+        st.altair_chart(charts.cost_effectiveness_chart(bands, "your uploaded data"),
+                        use_container_width=True)
+    _verdict(rows, bands)
+
+    lp, xp = result.lstm_predict_seconds, result.xgb_predict_seconds
+    if np.isfinite(lp) and np.isfinite(xp):
+        st.caption(
+            f"Running the models over your file took {lp + xp:.2f} s in total "
+            f"(LSTM {lp:.2f} s, XGBoost {xp:.3f} s), about "
+            f"{(lp + xp) / max(len(actual), 1) * 1000:.3f} ms per day forecast. Prediction is the "
+            "only cost this site measures directly; the training figures are read from the saved "
+            "model."
+        )
+    return rows
+
+
+def _render_recorded_cost(cb):
+    """Cost effectiveness as recorded when the model was trained."""
+    rows = [
+        {"Measure": label, "Accuracy gained": float(v),
+         "Cost effectiveness": float(v) / cb["delta_t"] if cb["delta_t"] else float("nan")}
+        for key, label in (("rmse", "RMSE"), ("mae", "MAE"), ("mape", "MAPE (%)"))
+        if (v := cb["overall"].get(key)) is not None
+    ]
+    _cost_tiles(cb["xgb_train_seconds"], cb["delta_t"])
+    st.caption(
+        f"Recorded on the held out test set when this model was trained, read from "
+        f"<code>models/{inference.ACTIVE_MODEL_NAME}/metadata.json</code>. Nothing here reflects "
+        "uploaded data.",
+    )
+    if rows:
+        _cost_table(rows)
+    if cb["by_band"]:
+        st.altair_chart(charts.cost_effectiveness_chart(cb["by_band"], "training test set"),
+                        use_container_width=True)
+    _verdict(rows, cb["by_band"])
+    if cb.get("total_pipeline_seconds"):
+        st.caption(
+            f"The whole pipeline, including the hyperparameter search, took "
+            f"{cb['total_pipeline_seconds'] / 60:,.0f} minutes end to end."
+        )
+    return rows
+
+
+def _render_cost_benefit(result):
+    """Objective 1.3.1.1.5 on the site: what the accuracy cost, both ways."""
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    st.subheader("What the accuracy cost")
+
+    try:
+        summary = inference.training_summary(_artifacts())
+    except Exception as exc:
+        st.caption(f"The saved model could not be read, so cost cannot be shown. {exc}")
+        return
+    cb = summary.get("cost_benefit")
+    if not cb:
+        st.markdown(
+            '<div class="note-box">This model directory has no recorded cost and benefit '
+            "measurement, so this section cannot be shown. Load a model trained by a notebook "
+            "that records it.</div>",
+            unsafe_allow_html=True,
+        )
+        return
+
+    st.markdown(
+        '<p class="dek">You could skip the LSTM and use XGBoost on its own, which trains far '
+        "faster. This section asks what the extra training time buys. The two tabs use the same "
+        "training cost, because the model is not retrained here, so any difference between them "
+        "comes from how much accuracy the ensemble gains on that particular data.</p>",
+        unsafe_allow_html=True,
+    )
+
+    tab_live, tab_trained = st.tabs(["On your uploaded data", "When the model was trained"])
+    with tab_live:
+        live_rows = _render_live_cost(result, cb)
+    with tab_trained:
+        rec_rows = _render_recorded_cost(cb)
+
+    if live_rows and rec_rows:
+        live = {r["Measure"]: r["Accuracy gained"] for r in live_rows}
+        rec = {r["Measure"]: r["Accuracy gained"] for r in rec_rows}
+        shared = [m for m in live if m in rec]
+        if shared:
+            parts = []
+            for m in shared:
+                d = live[m] - rec[m]
+                parts.append(f"{m} {'more' if d > 0 else 'less'} by {abs(d):.4f}")
+            st.caption(
+                "Compared with the training test set, the ensemble is worth " + ", ".join(parts)
+                + " on your uploaded file. A large difference means your data behaves differently "
+                "from the data the model was tested on."
+            )
+
+    st.caption(
+        "Cost effectiveness is (error of XGBoost alone - error of the ensemble) divided by the "
+        "extra training time, as defined in section 2.5.1. Above zero the ensemble earns back its "
+        "extra cost; zero or below it does not."
+    )
 
 def _render_reference_scorecard():
     """Training-time results for whichever model directory is loaded, read from

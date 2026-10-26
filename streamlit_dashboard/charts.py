@@ -334,3 +334,42 @@ def forecast_vs_actual_series(dates, actual, preds_by_model: dict) -> alt.Chart:
         )
         .properties(height=300)
     )
+
+
+def cost_effectiveness_chart(by_band: dict, series_label: str = "") -> alt.Chart:
+    """Accuracy the ensemble buys in each rainfall band, per second of training.
+
+    Zero carries the meaning here: above it the ensemble earns back the extra
+    training time in that band, below it the extra time bought a worse
+    forecast. Bars that fall below zero are drawn in the warning colour so the
+    sign is readable without checking the axis.
+    """
+    rows = [
+        {"Band": label.split(" (")[0], "value": float(v), "full": label,
+         "sign": "earns it back" if v > 0 else "does not"}
+        for label, v in by_band.items()
+        if v is not None and np.isfinite(v)
+    ]
+    if not rows:
+        return alt.Chart(pd.DataFrame({"x": []})).mark_point()
+    df = pd.DataFrame(rows)
+
+    bars = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            y=alt.Y("Band:N", sort=list(df["Band"]), title=None),
+            x=alt.X("value:Q", title="accuracy gained per second of training"),
+            color=alt.Color(
+                "sign:N",
+                scale=alt.Scale(domain=["earns it back", "does not"],
+                                range=[PALETTE["ensemble"], PALETTE["critical"]]),
+                legend=alt.Legend(title=None, orient="bottom"),
+            ),
+            tooltip=[alt.Tooltip("full:N", title="Rainfall band"),
+                     alt.Tooltip("value:Q", title="Cost effectiveness", format=".6f")],
+        )
+    )
+    zero = alt.Chart(df).mark_rule(color="#0b0b0b", size=1).encode(x=alt.datum(0.0))
+    title = f"Cost effectiveness by rainfall band{' - ' + series_label if series_label else ''}"
+    return (bars + zero).properties(height=max(120, 34 * len(df)), title=title)

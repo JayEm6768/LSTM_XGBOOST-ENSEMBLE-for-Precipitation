@@ -2,77 +2,7 @@
 
 import streamlit as st
 
-import inference
 from theme import page_header
-
-
-@st.cache_resource(show_spinner=False)
-def _artifacts():
-    return inference.load_artifacts()
-
-
-def _model_version_card() -> str:
-    """Describe the model actually loaded, read from its own metadata, rather
-    than a fixed description that goes stale when the model changes."""
-    try:
-        s = inference.training_summary(_artifacts())
-    except Exception:
-        return (
-            '<div class="app-card"><h3>Model version in use</h3>'
-            "<p>The saved model artifacts could not be read, so the configuration cannot be "
-            "described here. The Forecast page will report what is missing.</p></div>"
-        )
-
-    lc, ens, pre = s["lstm_config"], s["ensemble"], s["preprocessing"]
-    ev = s["evaluation"].get("ensemble", {})
-    base = s.get("baseline", {})
-
-    headline = ""
-    if ev.get("rmse") and base.get("rmse"):
-        gain = (float(base["rmse"]) - float(ev["rmse"])) / float(base["rmse"]) * 100
-        headline = (
-            f"<p>On its held out test set this ensemble reaches an RMSE of "
-            f"<b>{float(ev['rmse']):.4f}</b>, <b>{gain:.2f}%</b> below the single model baseline "
-            f"of {float(base['rmse']):.4f}.</p>"
-        )
-
-    searched = (
-        "<li>XGBoost hyperparameters were <b>selected by a search</b> on a validation holdout, "
-        "not set by hand.</li>"
-        if s.get("search")
-        else "<li>XGBoost hyperparameters are fixed to a previously validated configuration.</li>"
-    )
-    horizon = (
-        "<li>Includes <b>per lead day models</b>, so the Forecast page can show a seven day "
-        "outlook alongside the one day forecast.</li>"
-        if s.get("multi_horizon")
-        else ""
-    )
-
-    return f"""
-<div class="app-card">
-<h3>Model version in use</h3>
-<p>The site is serving the <b>{inference.ACTIVE_MODEL_NAME}</b> artifacts.</p>
-{headline}
-<ul>
-<li><b>LSTM:</b> two layers of {lc.get('units_layer1','?')} and {lc.get('units_layer2','?')} units,
-dropout {lc.get('dropout','?')}, {lc.get('window_size','?')} day lookback.</li>
-<li><b>XGBoost:</b> {s['xgb_description']}, same {lc.get('window_size','?')} day lookback as lag
-features.</li>
-<li><b>Ensemble:</b> {ens.get('strategy','inverse RMSE weighting')}, weights
-{float(ens.get('weight_lstm', float('nan'))):.4f} LSTM and
-{float(ens.get('weight_xgb', float('nan'))):.4f} XGBoost, derived from validation error rather
-than assumed.</li>
-<li><b>Preprocessing:</b> Box Cox with a fixed lambda of
-{float(pre.get('box_cox_lambda', float('nan'))):.4f}, then {pre.get('scaler_type','scaling')} for
-the LSTM.</li>
-{searched}
-{horizon}
-</ul>
-<p>Every value above is read from the saved model's own metadata, so this card stays correct if a
-different model is loaded. Nothing is tuned inside this website.</p>
-</div>
-"""
 
 
 def render():
@@ -150,8 +80,6 @@ model's predictions against days you already know the outcome for.</p>
             """,
             unsafe_allow_html=True,
         )
-
-        st.markdown(_model_version_card(), unsafe_allow_html=True)
 
     st.markdown(
         """

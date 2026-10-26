@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import math
 import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -574,6 +575,121 @@ class InferenceResult:
     # Seven-day outlook. None when the loaded model has no per-horizon models.
     # Columns: Lead day, Date, LSTM, XGBoost, Ensemble.
     forecast_7day: Optional[pd.DataFrame] = None
+    # Wall-clock seconds spent running each component over the uploaded file.
+    # Prediction is the only cost this site can measure: training happened
+    # offline and is read from metadata instead.
+    lstm_predict_seconds: float = float("nan")
+    xgb_predict_seconds: float = float("nan")
+
+
+# --- cost and benefit, objective 1.3.1.1.5 ----------------------------------
+# The metric in section 2.5.1 of the paper scores the ENSEMBLE against
+# standalone XGBoost, which is the cheaper fallback:
+#
+#     cost effectiveness = (error of XGBoost alone - error of ensemble) / dT
+#
+# dT is the extra training time the ensemble costs over XGBoost alone. That
+# equals the LSTM's training time, because the LSTM is the only thing the
+# ensemble adds. A positive value means the ensemble buys accuracy for each
+# second spent; zero or below means it does not.
+#
+# Training never happens on this site, so dT always comes from the saved
+# metadata. Only the accuracy benefit changes with the data in front of it.
+
+# Lower is better for these, so the benefit is (xgboost - ensemble).
+_BENEFIT_MEASURES = (("rmse", "RMSE"), ("mae", "MAE"), ("mape", "MAPE (%)"))
+
+
+def cost_effectiveness(metrics_xgb: dict, metrics_ens: dict, delta_t: float) -> list[dict]:
+    """Benefit and cost effectiveness per error measure, signs preserved.
+
+    Both views on the Performance page run through this, so the live numbers
+    and the recorded ones are computed the same way. A negative result is kept
+    rather than blanked: it is the case the metric exists to reveal.
+    """
+    rows = []
+    for key, label in _BENEFIT_MEASURES:
+        a, b = metrics_xgb.get(key), metrics_ens.get(key)
+        if a is None or b is None or not np.isfinite(a) or not np.isfinite(b):
+            continue
+        benefit = float(a) - float(b)
+        rows.append({
+            "Measure": label,
+            "Accuracy gained": benefit,
+            "Cost effectiveness": (benefit / delta_t
+                                   if delta_t and np.isfinite(delta_t) and delta_t > 0
+                                   else float("nan")),
+        })
+    return rows
+
+
+def band_benefit(table_xgb: pd.DataFrame, table_ens: pd.DataFrame) -> dict:
+    """MAE the ensemble gains over XGBoost alone in each rainfall band.
+
+    Bands with no days in them are dropped rather than reported as zero.
+    """
+    out = {}
+    for label in RAIN_INTENSITY_LABELS:
+        rx = table_xgb[table_xgb["Intensity"] == label]
+        re_ = table_ens[table_ens["Intensity"] == label]
+        if rx.empty or re_.empty:
+            continue
+        a, b = rx["MAE"].iloc[0], re_["MAE"].iloc[0]
+        if not np.isfinite(a) or not np.isfinite(b):
+            continue
+        out[label] = float(a) - float(b)
+    return out
+
+
+def _recorded_cost_benefit(md: dict) -> Optional[dict]:
+    """Flatten the cost-benefit block, whichever notebook wrote it.
+
+    The prefinal notebook nests it under cost/benefit/tradeoff; the earlier
+    ones store flat keys with per-band names. Older directories have none.
+    """
+    cb = md.get("cost_benefit_tradeoff")
+    if not cb:
+        return None
+
+    if "cost" in cb and "benefit" in cb:                      # prefinal shape
+        cost, ben = cb.get("cost", {}), cb.get("benefit", {})
+        vs = ben.get("vs_xgboost_alone", {})
+        overall = {k: vs.get(k) for k in ("rmse", "mae", "mape") if vs.get(k) is not None}
+        by_band = dict(vs.get("mae_by_band") or {})
+        delta_t = cost.get("lstm_train_seconds")
+        xgb_t = cost.get("xgboost_train_seconds")
+        extra = {"total_pipeline_seconds": cost.get("total_pipeline_seconds"),
+                 "ms_per_day": cost.get("ms_per_day_forecast")}
+    else:                                                      # static / retuned shape
+        vs = cb.get("ensemble_vs_xgboost_alone", {})
+        overall = {}
+        if vs.get("rmse_benefit") is not None:
+            overall["rmse"] = vs["rmse_benefit"]
+        if vs.get("mae_benefit_overall") is not None:
+            overall["mae"] = vs["mae_benefit_overall"]
+        by_band = {}
+        for suffix, label in (("no_rain", "No Rain (0 in)"),
+                              ("moderate", "Moderate (0.2-0.5 in)"),
+                              ("heavy", "Heavy (>0.5 in)")):
+            v = vs.get("mae_benefit_" + suffix)
+            if v is not None:
+                by_band[label] = v
+        delta_t = cb.get("lstm_train_seconds")
+        xgb_t = cb.get("xgboost_train_seconds")
+        extra = {"total_pipeline_seconds": None, "ms_per_day": None}
+
+    if delta_t is None:
+        return None
+    delta_t = float(delta_t)
+    xgb_t = float(xgb_t) if xgb_t is not None else float("nan")
+    return {
+        "delta_t": delta_t,
+        "xgb_train_seconds": xgb_t,
+        "ensemble_train_seconds": delta_t + xgb_t,
+        "overall": overall,
+        "by_band": by_band,
+        **extra,
+    }
 
 
 def training_summary(artifacts: Artifacts) -> dict:
@@ -600,6 +716,7 @@ def training_summary(artifacts: Artifacts) -> dict:
         "search": md.get("hyperparameter_search"),
         "multi_horizon": md.get("multi_horizon"),
         "cost": md.get("computational_cost", {}),
+        "cost_benefit": _recorded_cost_benefit(md),
     }
 
     # A readable one-line description of the XGBoost side, which differs in
@@ -704,17 +821,23 @@ def run_inference(clean_df: pd.DataFrame, artifacts: Artifacts) -> InferenceResu
 
     if len(x_lstm) > 0:
         x_lstm_r = x_lstm.reshape(-1, window, 1)
+        _t0 = time.perf_counter()
         lstm_pred_scaled = artifacts.lstm_model.predict(x_lstm_r, verbose=0)
+        lstm_predict_seconds = time.perf_counter() - _t0
         lstm_pred_bc = artifacts.scaler.inverse_transform(lstm_pred_scaled)[:, 0]
         backtest_lstm = inv_boxcox1p(lstm_pred_bc, lam)
 
+        _t0 = time.perf_counter()
         xgb_pred_bc = artifacts.xgb_model.predict(x_lag)
+        xgb_predict_seconds = time.perf_counter() - _t0
         backtest_xgb = inv_boxcox1p(xgb_pred_bc, lam)
 
         backtest_ensemble = artifacts.weight_lstm * backtest_lstm + artifacts.weight_xgb * backtest_xgb
         backtest_actual = inv_boxcox1p(y_lag_bc, lam)
         backtest_dates = clean_df["DATE"].to_numpy()[window : window + len(backtest_lstm)]
     else:
+        lstm_predict_seconds = float("nan")
+        xgb_predict_seconds = float("nan")
         backtest_lstm = np.array([])
         backtest_xgb = np.array([])
         backtest_ensemble = np.array([])
@@ -748,4 +871,6 @@ def run_inference(clean_df: pd.DataFrame, artifacts: Artifacts) -> InferenceResu
         forecast_xgb=forecast_xgb,
         forecast_ensemble=forecast_ensemble,
         forecast_7day=forecast_7day,
+        lstm_predict_seconds=lstm_predict_seconds,
+        xgb_predict_seconds=xgb_predict_seconds,
     )
