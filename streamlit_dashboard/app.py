@@ -38,8 +38,18 @@ PAGES = {
 }
 
 with st.sidebar:
-    st.markdown("### Precipitation Ensemble")
-    st.caption("LSTM plus XGBoost, inference only site")
+    st.markdown(
+        """
+        <div class="brand">
+        <span class="brand-dot"></span>
+        <div>
+            <div class="brand-title">Precipitation Ensemble</div>
+            <div class="brand-sub">LSTM + XGBoost &middot; inference only</div>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     choice = st.radio("Section", list(PAGES.keys()), label_visibility="collapsed")
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
     st.caption(

@@ -6,8 +6,9 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+import charts
 import inference
-from theme import PALETTE, page_header
+from theme import page_header
 
 STATE_RESULT = "forecast_result"
 STATE_CLEAN_DF = "forecast_clean_df"
@@ -56,7 +57,13 @@ def _render_seven_day(table: pd.DataFrame):
     st.dataframe(display, hide_index=True, use_container_width=True)
 
     chart = table.set_index("Date")[["LSTM", "XGBoost", "Ensemble"]]
-    st.line_chart(chart, use_container_width=True)
+    st.altair_chart(
+        charts.series_lines_chart(
+            chart.index,
+            {"LSTM": chart["LSTM"], "XGBoost": chart["XGBoost"], "Ensemble": chart["Ensemble"]},
+        ),
+        use_container_width=True,
+    )
 
     spread = float(table["Ensemble"].max() - table["Ensemble"].min())
     st.caption(
@@ -131,11 +138,30 @@ def _render_results(clean_df: pd.DataFrame, result: inference.InferenceResult, a
         }
     ).set_index("Date")
 
-    st.line_chart(
-        chart_df,
-        color=["#898781", PALETTE["lstm"], PALETTE["xgb"], PALETTE["ensemble"]],
-        height=340,
+    years = [int(y) for y in sorted(chart_df.index.year.unique())]
+    year = st.selectbox(
+        "Year to display",
+        years,
+        index=len(years) - 1 if years else 0,
+        help="Show one calendar year of the walk-forward check. The metrics below still cover your whole uploaded history.",
     )
+
+    by_year = chart_df[chart_df.index.year == year] if years else chart_df
+    if not by_year.empty:
+        st.altair_chart(
+            charts.forecast_vs_actual_series(
+                by_year.index,
+                by_year["Actual"],
+                {
+                    "LSTM": by_year["LSTM"],
+                    "XGBoost": by_year["XGBoost"],
+                    "Ensemble": by_year["Ensemble"],
+                },
+            ),
+            use_container_width=True,
+        )
+    else:
+        st.caption("No data available for the selected year.")
 
     metrics = inference.evaluate_all(result.backtest_actual, result.backtest_ensemble)
     m1, m2, m3, m4, m5 = st.columns(5)

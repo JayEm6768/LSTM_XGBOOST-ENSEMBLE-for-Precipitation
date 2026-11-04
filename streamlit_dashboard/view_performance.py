@@ -31,11 +31,11 @@ def _model_card(name: str, color: str, metrics: dict) -> str:
 <span class="badge" style="border-color:{color};color:{color};">
 <span class="swatch-dot" style="background:{color};"></span>{name}</span>
 <div style="margin-top:14px; display:grid; grid-template-columns: 1fr 1fr; gap:10px 18px;">
-  <div><div class="eyebrow" style="margin-bottom:2px;">RMSE (in)</div><div style="font-family:'IBM Plex Mono',monospace; font-size:20px;">{metrics['rmse']:.3f}</div></div>
-  <div><div class="eyebrow" style="margin-bottom:2px;">MAE (in)</div><div style="font-family:'IBM Plex Mono',monospace; font-size:20px;">{metrics['mae']:.3f}</div></div>
-  <div><div class="eyebrow" style="margin-bottom:2px;">MAPE</div><div style="font-family:'IBM Plex Mono',monospace; font-size:20px;">{_mape_text(metrics['mape'])}</div></div>
-  <div><div class="eyebrow" style="margin-bottom:2px;">R2</div><div style="font-family:'IBM Plex Mono',monospace; font-size:20px;">{metrics['r2']:.3f}</div></div>
-  <div><div class="eyebrow" style="margin-bottom:2px;">Bias (in)</div><div style="font-family:'IBM Plex Mono',monospace; font-size:20px;">{metrics['bias']:+.3f}</div></div>
+  <div><div class="eyebrow" style="margin-bottom:2px;">RMSE (in)</div><div style="font-family:'Cascadia Code',Consolas,monospace; font-weight:600; font-size:20px;">{metrics['rmse']:.3f}</div></div>
+  <div><div class="eyebrow" style="margin-bottom:2px;">MAE (in)</div><div style="font-family:'Cascadia Code',Consolas,monospace; font-weight:600; font-size:20px;">{metrics['mae']:.3f}</div></div>
+  <div><div class="eyebrow" style="margin-bottom:2px;">MAPE</div><div style="font-family:'Cascadia Code',Consolas,monospace; font-weight:600; font-size:20px;">{_mape_text(metrics['mape'])}</div></div>
+  <div><div class="eyebrow" style="margin-bottom:2px;">R2</div><div style="font-family:'Cascadia Code',Consolas,monospace; font-weight:600; font-size:20px;">{metrics['r2']:.3f}</div></div>
+  <div><div class="eyebrow" style="margin-bottom:2px;">Bias (in)</div><div style="font-family:'Cascadia Code',Consolas,monospace; font-weight:600; font-size:20px;">{metrics['bias']:+.3f}</div></div>
 </div>
 </div>
 """
@@ -263,8 +263,21 @@ def _render_agreement_charts(result, actual, preds, metrics):
     )
 
     st.markdown("##### Day by day")
+
+    day_dates = np.asarray(pd.to_datetime(result.backtest_dates))
+    day_years = [int(y) for y in sorted(pd.DatetimeIndex(day_dates).year.unique())]
+    day_year = st.selectbox(
+        "Year to display",
+        day_years,
+        index=len(day_years) - 1 if day_years else 0,
+        help="Show one calendar year of the day-by-day check. The metrics and other charts still cover the whole uploaded history.",
+    )
+
+    day_mask = np.asarray(pd.DatetimeIndex(day_dates).year == day_year)
+    day_actual = np.asarray(actual, float)[day_mask]
+    day_preds = {m: np.asarray(p, float)[day_mask] for m, p in preds.items()}
     st.altair_chart(
-        charts.forecast_vs_actual_series(result.backtest_dates, actual, preds),
+        charts.forecast_vs_actual_series(day_dates[day_mask], day_actual, day_preds),
         use_container_width=True,
     )
 

@@ -31,6 +31,19 @@ _MODEL_SCALE = alt.Scale(domain=MODEL_ORDER, range=MODEL_COLOURS)
 # than leaving the reader to guess which direction is good.
 LOWER_IS_BETTER = {"RMSE", "MAE", "MAPE (%)", "Bias", "FAR"}
 
+_REFERENCE = "#8a8a8a"
+
+_STYLE = {
+    "background": "transparent",
+    "font": "Cascadia Code, Consolas, ui-monospace, monospace",
+    "title": {"anchor": "start", "fontSize": 14, "fontWeight": 600},
+    # "axis": {"labelFont": "Cascadia Code", "titleFont": "Cascadia Code"},
+    "legend": {"labelFont": "Cascadia Code", "titleFont": "Cascadia Code"},
+    "view": {"stroke": None},
+    "bar": {"cornerRadiusTopLeft": 5, "cornerRadiusTopRight": 5},
+    "mark": {"tooltip": True},
+}
+
 
 def metric_comparison(metrics_by_model: dict, metric: str) -> alt.Chart:
     """One metric across the three models, as bars from a zero baseline.
@@ -52,7 +65,7 @@ def metric_comparison(metrics_by_model: dict, metric: str) -> alt.Chart:
             tooltip=[alt.Tooltip("Model:N"), alt.Tooltip("value:Q", format=".4f", title=metric)],
         )
         .properties(height=200, title=metric)
-    )
+    ).configure(**_STYLE)
 
 
 def predicted_vs_actual(actual, preds_by_model: dict) -> alt.Chart:
@@ -85,10 +98,10 @@ def predicted_vs_actual(actual, preds_by_model: dict) -> alt.Chart:
     )
     diagonal = (
         alt.Chart(pd.DataFrame({"x": [0, hi], "y": [0, hi]}))
-        .mark_line(strokeDash=[6, 4], color="#8a8a8a", size=1)
+        .mark_line(strokeDash=[6, 4], color=_REFERENCE, size=1)
         .encode(x="x:Q", y="y:Q")
     )
-    return (points + diagonal).properties(height=340)
+    return (points + diagonal).properties(height=340).configure(**_STYLE)
 
 
 def residual_histogram(actual, preds_by_model: dict, clip: float = 20.0) -> alt.Chart:
@@ -113,12 +126,12 @@ def residual_histogram(actual, preds_by_model: dict, clip: float = 20.0) -> alt.
         y=alt.Y("count():Q", title="days"),
         color=alt.Color("Model:N", scale=_MODEL_SCALE, legend=None),
     )
-    zero = alt.Chart().mark_rule(color="#0b0b0b", size=1).encode(x=alt.datum(0.0))
+    zero = alt.Chart().mark_rule(color=_REFERENCE, size=1).encode(x=alt.datum(0.0))
     return (
         alt.layer(bars, zero)
         .properties(height=190, width=230)
         .facet(column=alt.Column("Model:N", sort=MODEL_ORDER, title=None), data=df)
-    )
+    ).configure(**_STYLE)
 
 
 def spread_comparison(pred_sds: dict, observed_sd: float) -> alt.Chart:
@@ -144,7 +157,7 @@ def spread_comparison(pred_sds: dict, observed_sd: float) -> alt.Chart:
         .mark_rule(color=PALETTE["critical"], strokeDash=[6, 4], size=2)
         .encode(y="y:Q", tooltip=alt.Tooltip("y:Q", format=".4f", title="observed sd"))
     )
-    return (bars + rule).properties(height=220)
+    return (bars + rule).properties(height=220).configure(**_STYLE)
 
 
 def intensity_bars(tables_by_model: dict, value: str = "MAE") -> alt.Chart:
@@ -175,7 +188,7 @@ def intensity_bars(tables_by_model: dict, value: str = "MAE") -> alt.Chart:
                      alt.Tooltip("N:Q", title="days"), alt.Tooltip(f"{value}:Q", format=".3f")],
         )
         .properties(height=200, width=110)
-    )
+    ).configure(**_STYLE)
 
 
 def event_detection_chart(tables_by_model: dict, metric: str = "AUC") -> alt.Chart:
@@ -210,8 +223,8 @@ def event_detection_chart(tables_by_model: dict, metric: str = "AUC") -> alt.Cha
             .mark_rule(color=PALETTE["critical"], strokeDash=[6, 4], size=1.5)
             .encode(y="y:Q", tooltip=alt.Tooltip("y:Q", title="chance"))
         )
-        return (line + chance).properties(height=280)
-    return line.properties(height=280)
+        return (line + chance).properties(height=280).configure(**_STYLE)
+    return line.properties(height=280).configure(**_STYLE)
 
 
 def lead_day_chart(per_lead: pd.DataFrame, value: str = "ENS RMSE") -> alt.Chart:
@@ -253,7 +266,7 @@ def lead_day_chart(per_lead: pd.DataFrame, value: str = "ENS RMSE") -> alt.Chart
                      alt.Tooltip("value:Q", format=".4f")],
         )
         .properties(height=300)
-    )
+    ).configure(**_STYLE)
 
 
 def kge_components(parts_by_model: dict) -> alt.Chart:
@@ -284,7 +297,7 @@ def kge_components(parts_by_model: dict) -> alt.Chart:
         )
         .properties(height=220, width=150)
     )
-    return bars
+    return bars.configure(**_STYLE)
 
 
 def skill_score_chart(skill_df: pd.DataFrame) -> alt.Chart:
@@ -309,7 +322,7 @@ def skill_score_chart(skill_df: pd.DataFrame) -> alt.Chart:
         )
         .properties(height=220, width=135)
     )
-    return bars
+    return bars.configure(**_STYLE)
 
 
 def forecast_vs_actual_series(dates, actual, preds_by_model: dict) -> alt.Chart:
@@ -321,7 +334,7 @@ def forecast_vs_actual_series(dates, actual, preds_by_model: dict) -> alt.Chart:
                                     "value": np.asarray(p, float), "Series": name}))
     df = pd.concat(frames, ignore_index=True)
     scale = alt.Scale(domain=["Observed"] + MODEL_ORDER,
-                      range=["#8a8a8a"] + MODEL_COLOURS)
+                      range=[_REFERENCE] + MODEL_COLOURS)
     return (
         alt.Chart(df)
         .mark_line(size=1.6)
@@ -333,6 +346,35 @@ def forecast_vs_actual_series(dates, actual, preds_by_model: dict) -> alt.Chart:
                      alt.Tooltip("value:Q", format=".2f")],
         )
         .properties(height=300)
+    ).configure(**_STYLE)
+
+
+def series_lines_chart(dates, series_by_model: dict, height: int = 300) -> alt.Chart:
+    """Styled multi-series line chart with no observation line.
+
+    Used for forward-looking series (such as the seven-day outlook) where there
+    is no known actual to draw next to the models. Colours follow the site-wide
+    model palette and the chart carries the same shared styling as every other
+    chart on the site.
+    """
+    frames = []
+    for name, s in series_by_model.items():
+        frames.append(pd.DataFrame({"Date": pd.to_datetime(dates),
+                                    "value": np.asarray(s, float), "Series": name}))
+    df = pd.concat(frames, ignore_index=True)
+    return (
+        alt.Chart(df)
+        .mark_line(size=1.6)
+        .encode(
+            x=alt.X("Date:T", title=None),
+            y=alt.Y("value:Q", title="rainfall"),
+            color=alt.Color("Series:N", scale=_MODEL_SCALE,
+                            legend=alt.Legend(orient="top", title=None)),
+            tooltip=[alt.Tooltip("Date:T"), alt.Tooltip("Series:N"),
+                     alt.Tooltip("value:Q", format=".2f")],
+        )
+        .properties(height=height)
+        .configure(**_STYLE)
     )
 
 
@@ -351,7 +393,7 @@ def cost_effectiveness_chart(by_band: dict, series_label: str = "") -> alt.Chart
         if v is not None and np.isfinite(v)
     ]
     if not rows:
-        return alt.Chart(pd.DataFrame({"x": []})).mark_point()
+        return alt.Chart(pd.DataFrame({"x": []})).mark_point().configure(**_STYLE)
     df = pd.DataFrame(rows)
 
     bars = (
@@ -370,6 +412,6 @@ def cost_effectiveness_chart(by_band: dict, series_label: str = "") -> alt.Chart
                      alt.Tooltip("value:Q", title="Cost effectiveness", format=".6f")],
         )
     )
-    zero = alt.Chart(df).mark_rule(color="#0b0b0b", size=1).encode(x=alt.datum(0.0))
+    zero = alt.Chart(df).mark_rule(color=_REFERENCE, size=1).encode(x=alt.datum(0.0))
     title = f"Cost effectiveness by rainfall band{' - ' + series_label if series_label else ''}"
-    return (bars + zero).properties(height=max(120, 34 * len(df)), title=title)
+    return (bars + zero).properties(height=max(120, 34 * len(df)), title=title).configure(**_STYLE)
