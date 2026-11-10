@@ -238,6 +238,19 @@ models/v2_static artifacts, then reload this page.
     left, right = st.columns([2, 1], gap="large")
     with right:
         st.markdown(
+            """
+<div class="app-card">
+<h3>How to use the system</h3>
+<ul>
+<li>Press the button in "Use Model"</li>
+<li>Upload your precipitation CSV file</li>
+<li>Scroll to view the predictions</li>
+</ul>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
             f"""
 <div class="app-card">
 <h3>File format</h3>

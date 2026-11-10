@@ -50,7 +50,7 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
-    choice = st.radio("Section", list(PAGES.keys()), label_visibility="collapsed")
+    choice = st.radio("Section", list(PAGES.keys()), label_visibility="collapsed", key="nav_choice")
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
     st.caption(
         f"Loaded model artifacts: **{ACTIVE_MODEL_NAME}** (from models/{ACTIVE_MODEL_NAME}/). "

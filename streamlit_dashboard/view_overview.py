@@ -5,6 +5,11 @@ import streamlit as st
 from theme import page_header
 
 
+def _go_to_forecast():
+    """Landing-page CTA: switch the sidebar navigation to the Forecast page."""
+    st.session_state["nav_choice"] = "Forecast"
+
+
 def render():
     page_header(
         eyebrow="Precipitation Forecasting Thesis",
@@ -14,6 +19,13 @@ def render():
             "precipitation. It loads a model that was already trained and evaluated offline "
             "and uses it only to make predictions. No training happens here."
         ),
+    )
+
+    st.button(
+        "Use Model",
+        type="primary",
+        on_click=_go_to_forecast,
+        use_container_width=True,
     )
 
     col1, col2 = st.columns([3, 2], gap="large")
@@ -48,7 +60,7 @@ inches before it is shown.</p>
         st.markdown(
             """
 <div class="app-card">
-<h3>What this website does and does not do</h3>
+<h3>Do's and don'ts of the system</h3>
 <p>The Forecast page lets you upload your own daily precipitation CSV and get
 predictions from the saved model. It runs inference only: it loads the LSTM
 weights, the XGBoost model, the fitted scaler, and the Box Cox lambda exactly as
@@ -67,6 +79,19 @@ how the model performs in general before trusting a forecast on your own data.</
         st.markdown(
             """
 <div class="app-card">
+<h3>How to use the system</h3>
+<ul>
+<li>Press the button in "Use Model"</li>
+<li>Upload your precipitation CSV file</li>
+<li>Scroll to view the predictions</li>
+</ul>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            """
+<div class="app-card">
 <h3>What your file needs</h3>
 <p>A CSV with two columns:</p>
 <ul>
@@ -79,7 +104,7 @@ model's predictions against days you already know the outcome for.</p>
 </div>
             """,
             unsafe_allow_html=True,
-        )
+        )        
 
     st.markdown(
         """

@@ -23,6 +23,7 @@ CSS = """
              "Segoe UI Mono", Menlo, monospace;
 
   --ink:       #0c1526;
+  --title:     #0c1526;
   --ink-2:     #42506b;
   --ink-3:     #74819a;
 
@@ -56,6 +57,7 @@ CSS = """
     color-scheme: dark;
 
     --ink:       #eef3ff;
+    --title:     #ffffff;
     --ink-2:     #a9b6d0;
     --ink-3:     #6d7d99;
 
@@ -161,20 +163,13 @@ h1, h2, h3, h4, h5 {
 }
 
 h1 {
+  color: var(--title);
   font-weight: 700;
   font-size: clamp(1.7rem, 3vw, 2.3rem);
   line-height: 1.12;
   letter-spacing: -0.025em;
 }
 
-@supports ((-webkit-background-clip: text) or (background-clip: text)) {
-  h1 {
-    background: linear-gradient(100deg, var(--ink) 0%, var(--lstm) 58%, var(--ensemble) 105%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-}
 
 [data-testid="stMarkdownContainer"] p {
   color: var(--ink-2);
@@ -260,7 +255,7 @@ hr.divider {
 
 .app-card h3 {
   margin: 0 0 10px 0;
-  font-size: 15.5px;
+  font-size: 32px;
   letter-spacing: -0.01em;
 }
 .app-card p, .app-card li {

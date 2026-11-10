@@ -60,7 +60,10 @@ def metric_comparison(metrics_by_model: dict, metric: str) -> alt.Chart:
         .mark_bar()
         .encode(
             x=alt.X("Model:N", sort=MODEL_ORDER, title=None),
-            y=alt.Y("value:Q", title=f"{metric} ({direction})", scale=alt.Scale(zero=True)),
+            y=alt.Y("value:Q", 
+                    title=f"({direction})", 
+                    scale=alt.Scale(zero=True), 
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-185)),
             color=alt.Color("Model:N", scale=_MODEL_SCALE, legend=None),
             tooltip=[alt.Tooltip("Model:N"), alt.Tooltip("value:Q", format=".4f", title=metric)],
         )
@@ -88,7 +91,10 @@ def predicted_vs_actual(actual, preds_by_model: dict) -> alt.Chart:
         .mark_circle(size=34, opacity=0.45)
         .encode(
             x=alt.X("Actual:Q", title="Observed rainfall", scale=alt.Scale(domain=[0, hi])),
-            y=alt.Y("Predicted:Q", title="Forecast rainfall", scale=alt.Scale(domain=[0, hi])),
+            y=alt.Y("Predicted:Q", 
+                    title="Forecast rainfall", 
+                    scale=alt.Scale(domain=[0, hi]),
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-175)),
             color=alt.Color("Model:N", scale=_MODEL_SCALE,
                             legend=alt.Legend(orient="top", title=None)),
             tooltip=[alt.Tooltip("Model:N"),
@@ -123,7 +129,9 @@ def residual_histogram(actual, preds_by_model: dict, clip: float = 20.0) -> alt.
     bars = alt.Chart().mark_bar(opacity=0.85).encode(
         x=alt.X("Residual:Q", bin=alt.Bin(maxbins=45),
                 title=f"Forecast minus observed (clipped to +/-{clip:.0f})"),
-        y=alt.Y("count():Q", title="days"),
+        y=alt.Y("count():Q", 
+                title="Days",
+                axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-100)),
         color=alt.Color("Model:N", scale=_MODEL_SCALE, legend=None),
     )
     zero = alt.Chart().mark_rule(color=_REFERENCE, size=1).encode(x=alt.datum(0.0))
@@ -147,7 +155,10 @@ def spread_comparison(pred_sds: dict, observed_sd: float) -> alt.Chart:
         .mark_bar()
         .encode(
             x=alt.X("Model:N", sort=MODEL_ORDER, title=None),
-            y=alt.Y("sd:Q", title="standard deviation", scale=alt.Scale(zero=True)),
+            y=alt.Y("sd:Q", 
+                    title="Standard Deviation", 
+                    scale=alt.Scale(zero=True),
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-175)),
             color=alt.Color("Model:N", scale=_MODEL_SCALE, legend=None),
             tooltip=[alt.Tooltip("Model:N"), alt.Tooltip("sd:Q", format=".4f")],
         )
@@ -179,7 +190,10 @@ def intensity_bars(tables_by_model: dict, value: str = "MAE") -> alt.Chart:
         .mark_bar()
         .encode(
             x=alt.X("Model:N", sort=MODEL_ORDER, title=None, axis=alt.Axis(labelAngle=0)),
-            y=alt.Y(f"{value}:Q", title=f"{value} (lower is better)", scale=alt.Scale(zero=True)),
+            y=alt.Y(f"{value}:Q", 
+                    title=f"{value}", 
+                    scale=alt.Scale(zero=True),
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-100)),
             color=alt.Color("Model:N", scale=_MODEL_SCALE, legend=None),
             column=alt.Column("Intensity:N", title=None,
                               sort=["No Rain (0 in)", "Light (0-0.2 in)",
@@ -209,7 +223,10 @@ def event_detection_chart(tables_by_model: dict, metric: str = "AUC") -> alt.Cha
         .mark_line(point=True, size=2)
         .encode(
             x=alt.X("Threshold (in):O", title="rainfall threshold"),
-            y=alt.Y(f"{metric}:Q", title=metric, scale=alt.Scale(zero=False)),
+            y=alt.Y(f"{metric}:Q", 
+                    title=metric, 
+                    scale=alt.Scale(zero=False),
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-75)),
             color=alt.Color("Model:N", scale=_MODEL_SCALE,
                             legend=alt.Legend(orient="top", title=None)),
             tooltip=[alt.Tooltip("Model:N"), alt.Tooltip("Threshold (in):O"),
@@ -288,7 +305,9 @@ def kge_components(parts_by_model: dict) -> alt.Chart:
         .mark_bar()
         .encode(
             x=alt.X("Model:N", sort=MODEL_ORDER, title=None, axis=alt.Axis(labelAngle=0)),
-            y=alt.Y("value:Q", title="value (1.0 is ideal)", scale=alt.Scale(zero=True)),
+            y=alt.Y("value:Q", title="Value",
+                     scale=alt.Scale(zero=True),
+                     axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-100)),
             color=alt.Color("Model:N", scale=_MODEL_SCALE, legend=None),
             column=alt.Column("Component:N", title=None,
                               sort=list(labels.values())),
@@ -313,8 +332,9 @@ def skill_score_chart(skill_df: pd.DataFrame) -> alt.Chart:
         .mark_bar()
         .encode(
             x=alt.X("Model:N", sort=MODEL_ORDER, title=None, axis=alt.Axis(labelAngle=0)),
-            y=alt.Y("skill:Q", title="MSE skill (0 = no better than reference)",
-                    scale=alt.Scale(zero=True)),
+            y=alt.Y("skill:Q", title="MSE skill",
+                    scale=alt.Scale(zero=True),
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-125)),
             color=alt.Color("Model:N", scale=_MODEL_SCALE, legend=None),
             column=alt.Column("Reference:N", title=None),
             tooltip=[alt.Tooltip("Model:N"), alt.Tooltip("Reference:N"),
@@ -340,7 +360,9 @@ def forecast_vs_actual_series(dates, actual, preds_by_model: dict) -> alt.Chart:
         .mark_line(size=1.6)
         .encode(
             x=alt.X("Date:T", title=None),
-            y=alt.Y("value:Q", title="rainfall"),
+            y=alt.Y("value:Q", 
+                    title="Rainfall",
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-100)),
             color=alt.Color("Series:N", scale=scale, legend=alt.Legend(orient="top", title=None)),
             tooltip=[alt.Tooltip("Date:T"), alt.Tooltip("Series:N"),
                      alt.Tooltip("value:Q", format=".2f")],
@@ -367,7 +389,9 @@ def series_lines_chart(dates, series_by_model: dict, height: int = 300) -> alt.C
         .mark_line(size=1.6)
         .encode(
             x=alt.X("Date:T", title=None),
-            y=alt.Y("value:Q", title="rainfall"),
+            y=alt.Y("value:Q", 
+                    title="rainfall",
+                    axis=alt.Axis(titleAngle=0, titleAlign="left", titleX=-100)),
             color=alt.Color("Series:N", scale=_MODEL_SCALE,
                             legend=alt.Legend(orient="top", title=None)),
             tooltip=[alt.Tooltip("Date:T"), alt.Tooltip("Series:N"),

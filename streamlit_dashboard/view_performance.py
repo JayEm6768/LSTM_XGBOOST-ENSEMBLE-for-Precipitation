@@ -137,7 +137,7 @@ def _render_ensemble_metrics(actual, preds, metrics, clean_df):
         "means the model did exactly as well as that reference; below zero means worse. "
         "Persistence repeats yesterday, climatology uses the average of the history before the "
         "scored period, and the zero forecast assumes it never rains, which on a mostly dry "
-        "record is a surprisingly hard baseline to beat on MAE.</p>",
+        "record is a surprisingly hard baseline to beat on MAE. (0 = no better than reference)</p>",
         unsafe_allow_html=True,
     )
     refs = {}
@@ -175,7 +175,7 @@ def _render_ensemble_metrics(actual, preds, metrics, clean_df):
         "three things that fail independently: whether the forecast moves with the observations "
         "at all, whether its average level is right, and whether it varies as much as reality "
         "does. All three are ideally 1. A forecast can sit at the right level while barely "
-        "varying, and no single error number reveals that.</p>",
+        "varying, and no single error number reveals that.</p> (1.0 is the ideal)",
         unsafe_allow_html=True,
     )
     parts = {m: inference.kling_gupta(actual, p) for m, p in preds.items()}
@@ -330,7 +330,7 @@ def _render_regime_charts(actual, preds):
     st.markdown(
         '<p class="dek">Overall error is dominated by whichever band holds the most days, '
         "usually dry ones. Splitting by how much rain actually fell shows which model is stronger "
-        "in which regime.</p>",
+        "in which regime.</p>(lower is better)",
         unsafe_allow_html=True,
     )
     tables = {name: inference.rainfall_intensity_performance(actual, p) for name, p in preds.items()}
