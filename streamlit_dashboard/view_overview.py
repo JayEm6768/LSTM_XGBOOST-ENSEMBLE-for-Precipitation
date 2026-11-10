@@ -81,7 +81,8 @@ how the model performs in general before trusting a forecast on your own data.</
 <div class="app-card">
 <h3>How to use the system</h3>
 <ul>
-<li>Press the button in "Use Model"</li>
+<li>Press the button "Use Model"</li>
+<li>Press the Upload button</li>
 <li>Upload your precipitation CSV file</li>
 <li>Scroll to view the predictions</li>
 </ul>

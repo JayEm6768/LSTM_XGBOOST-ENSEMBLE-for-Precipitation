@@ -1,6 +1,6 @@
 /data
 /.claude
 /archive
-/models
+models/
 /predictions
 ~$*
